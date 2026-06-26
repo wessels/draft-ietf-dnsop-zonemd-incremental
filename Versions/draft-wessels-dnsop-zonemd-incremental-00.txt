@@ -1,0 +1,280 @@
+
+
+
+
+DNSOP                                                         D. Wessels
+Internet-Draft                                                  Verisign
+Intended status: Standards Track                            26 June 2026
+Expires: 28 December 2026
+
+
+                   The Incremental Scheme for ZONEMD
+                  draft-ietf-dnsop-zonemd-incremental
+
+Abstract
+
+   The ZONEMD Resource Record provides data origin authentication for
+   DNS zones as a whole, by embedding a cryptographic hash inside the
+   zone itself.  This allows recipients to verifiy that zone data has
+   not been modified since originally published by the zone operator.
+
+   [RFC8976] defined a single ZONEMD coallation scheme, the Simple
+   scheme, which requires processing all zone data any time the zone is
+   updated.  This document describes the Incremental scheme, which uses
+   a Merkle Tree to more efficiently generate ZONEMD hashes for zone
+   updates.
+
+Status of This Memo
+
+   This Internet-Draft is submitted in full conformance with the
+   provisions of BCP 78 and BCP 79.
+
+   Internet-Drafts are working documents of the Internet Engineering
+   Task Force (IETF).  Note that other groups may also distribute
+   working documents as Internet-Drafts.  The list of current Internet-
+   Drafts is at https://datatracker.ietf.org/drafts/current/.
+
+   Internet-Drafts are draft documents valid for a maximum of six months
+   and may be updated, replaced, or obsoleted by other documents at any
+   time.  It is inappropriate to use Internet-Drafts as reference
+   material or to cite them other than as "work in progress."
+
+   This Internet-Draft will expire on 28 December 2026.
+
+Copyright Notice
+
+   Copyright (c) 2026 IETF Trust and the persons identified as the
+   document authors.  All rights reserved.
+
+   This document is subject to BCP 78 and the IETF Trust's Legal
+   Provisions Relating to IETF Documents (https://trustee.ietf.org/
+   license-info) in effect on the date of publication of this document.
+   Please review these documents carefully, as they describe your rights
+
+
+
+Wessels                 Expires 28 December 2026                [Page 1]
+
+Internet-Draft      The Incremental Scheme for ZONEMD          June 2026
+
+
+   and restrictions with respect to this document.  Code Components
+   extracted from this document must include Revised BSD License text as
+   described in Section 4.e of the Trust Legal Provisions and are
+   provided without warranty as described in the Revised BSD License.
+
+Table of Contents
+
+   1.  Introduction  . . . . . . . . . . . . . . . . . . . . . . . .   2
+     1.1.  Reserved Words  . . . . . . . . . . . . . . . . . . . . .   2
+   2.  The MERKLE-INCREMENTAL Scheme . . . . . . . . . . . . . . . .   3
+     2.1.  MERKLE-INCREMENTAL Data Structure . . . . . . . . . . . .   3
+     2.2.  MERKLE-INCREMENTAL Scheme Inclusion/Exclusion Rules . . .   3
+     2.3.  MERKLE-INCREMENTAL Scheme Digest Calculation  . . . . . .   3
+   3.  Security Considerations . . . . . . . . . . . . . . . . . . .   4
+   4.  Operational Considerations  . . . . . . . . . . . . . . . . .   4
+   5.  IANA Considerations . . . . . . . . . . . . . . . . . . . . .   4
+   6.  Acknowledgements  . . . . . . . . . . . . . . . . . . . . . .   4
+   7.  Changes . . . . . . . . . . . . . . . . . . . . . . . . . . .   4
+   8.  Normative References  . . . . . . . . . . . . . . . . . . . .   4
+   Author's Address  . . . . . . . . . . . . . . . . . . . . . . . .   5
+
+1.  Introduction
+
+   The ZONEMD Simple scheme works by iterating over all RRsets in zone
+   in canonical order.  At each iteration the wire format of each RRset
+   is given as input to the hashing function.  This necessarily means
+   that any update, insertion, or deletion to the zone requires another
+   full iteration over all RRsets.  The Simple scheme is inefficient for
+   large zones and for zones with frequent updates.
+
+   This document describes a new ZONEMD collation scheme better suited
+   to large zones and zones with frequent updates.  It leverages the
+   Merkle Tree data structure, which requires only hash calcuation
+   updates of nodes along the path between the root node and a leaf
+   node.
+
+   The Incremental scheme requires implementations to maintain a Merkle
+   tree data structure in memory for efficient updates.
+
+1.1.  Reserved Words
+
+   The key words "MUST", "MUST NOT", "REQUIRED", "SHALL", "SHALL NOT",
+   "SHOULD", "SHOULD NOT", "RECOMMENDED", "NOT RECOMMENDED", "MAY", and
+   "OPTIONAL" in this document are to be interpreted as described in BCP
+   14 [RFC2119] [RFC8174] when, and only when, they appear in all
+   capitals, as shown here.
+
+
+
+
+
+Wessels                 Expires 28 December 2026                [Page 2]
+
+Internet-Draft      The Incremental Scheme for ZONEMD          June 2026
+
+
+2.  The MERKLE-INCREMENTAL Scheme
+
+2.1.  MERKLE-INCREMENTAL Data Structure
+
+   The MERKLE-INCREMENTAL data strcture is a Merkle Tree that is three
+   levels deep and where every non-leaf node has branches to 256 child
+   nodes.
+
+   At depth one is the root node with branches to 256 child nodes.
+
+   At depth two are 256 intermediate nodes, each of which has branches
+   to 256 leaf nodes.
+
+   At depth three are 65,536 leaf nodes.  Each leaf node consists of an
+   array/list of a variable number of hash values, one per RRset.  The
+   RRset hash values are computed by providing the canonical wire format
+   of the RRset as input to a hash function.  The hash function is
+   determined by the Hash Algorithm field of the ZONEMD record, as
+   described in Section 2.2.3 of [RFC8976].  At this time only SHA384
+   and SHA512 are specified for use with ZONEMD.
+
+   To place an RRset into the MERKLE-INCREMENTAL data structure, its
+   hash value is first calculated.  Its location in the Merkle tree is
+   determined by using the first two binary octets of the hash value.
+   The first octet corresponds to the branch index between the root and
+   intermediate nodes.  The second octet corresponds to the branch index
+   between the intermediate and the leaf nodes.
+
+   For example ...
+
+2.2.  MERKLE-INCREMENTAL Scheme Inclusion/Exclusion Rules
+
+   The inclusion and exclusion rules for the MERKLE-INCREMENTAL scheme
+   are identical to those for the SIMPLE scheme, described in
+   Section 3.3.1.1 of [RFC8976].
+
+2.3.  MERKLE-INCREMENTAL Scheme Digest Calculation
+
+   A zone digest using the MERKLE-INCREMENTAL scheme is calcluated over
+   the Merkle tree in a bottom-up fashion.  Each node in the tree has
+   its own hash value, which is calculated from the elements directly
+   beneath it.
+
+   A leaf node's hash value is calculated by concatenating all of its
+   per-RRset hash values, sorted numerically, as input to the zone
+   digest hash function.
+
+
+
+
+
+Wessels                 Expires 28 December 2026                [Page 3]
+
+Internet-Draft      The Incremental Scheme for ZONEMD          June 2026
+
+
+   The root and intermediate hash values are calculated by concatenation
+   all of its child node hash values, sorted by branch index, as input
+   to the zone digest hash function.  The root node hash value becomes
+   the zone digest, placed in the RDATA of the ZONEMD RR.
+
+   Upon a change to a leaf node, the intermediate node hash values are
+   recalculated from the bottom up, until reaching the root node.
+
+   Verbatim fixed width
+
+3.  Security Considerations
+
+   Words
+
+4.  Operational Considerations
+
+   Words
+
+5.  IANA Considerations
+
+   Update the ZONEMD registry
+
+6.  Acknowledgements
+
+   The authors wish to thank members of the DNSOP working group for
+   their input.
+
+7.  Changes
+
+   RFC Editor: Please remove this section before publication.
+
+   This section lists substantial changes to the document as it is being
+   worked on.
+
+8.  Normative References
+
+   [RFC2119]  Bradner, S., "Key words for use in RFCs to Indicate
+              Requirement Levels", BCP 14, RFC 2119,
+              DOI 10.17487/RFC2119, March 1997,
+              <https://www.rfc-editor.org/info/rfc2119>.
+
+   [RFC8174]  Leiba, B., "Ambiguity of Uppercase vs Lowercase in RFC
+              2119 Key Words", BCP 14, RFC 8174, DOI 10.17487/RFC8174,
+              May 2017, <https://www.rfc-editor.org/info/rfc8174>.
+
+
+
+
+
+
+
+Wessels                 Expires 28 December 2026                [Page 4]
+
+Internet-Draft      The Incremental Scheme for ZONEMD          June 2026
+
+
+   [RFC8976]  Wessels, D., Barber, P., Weinberg, M., Kumari, W., and W.
+              Hardaker, "Message Digest for DNS Zones", RFC 8976,
+              DOI 10.17487/RFC8976, February 2021,
+              <https://www.rfc-editor.org/info/rfc8976>.
+
+Author's Address
+
+   Duane Wessels
+   Verisign
+   Email: dwessels@verisign.com
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+Wessels                 Expires 28 December 2026                [Page 5]
