@@ -49,10 +49,10 @@
 </section>
 </section>
 
-<section anchor="the-merkle-incremental-scheme"><name>The MERKLE-INCREMENTAL Scheme</name>
+<section anchor="the-mt3-incremental-scheme"><name>The MT3-INCREMENTAL Scheme</name>
 
-<section anchor="merkle-incremental-data-structure"><name>MERKLE-INCREMENTAL Data Structure</name>
-<t>The MERKLE-INCREMENTAL data strcture is a Merkle Tree that is three
+<section anchor="mt3-incremental-data-structure"><name>MT3-INCREMENTAL Data Structure</name>
+<t>The MT3-INCREMENTAL data strcture is a Merkle Tree that is three
    levels deep and where every non-leaf node has branches to 256 child
    nodes.</t>
 <t>At depth one is the root node with branches to 256 child nodes.</t>
@@ -65,51 +65,81 @@
    is determined by the Hash Algorithm field of the ZONEMD record, as
    described in Section 2.2.3 of <xref target="RFC8976"></xref>.  At this time only SHA384
    and SHA512 are specified for use with ZONEMD.</t>
-<t>To place an RRset into the MERKLE-INCREMENTAL data structure, its
+<t>To place an RRset into the MT3-INCREMENTAL data structure, its
    hash value is first calculated.  Its location in the Merkle tree is
    determined by using the first two binary octets of the hash value.
    The first octet corresponds to the branch index between the root and
    intermediate nodes.  The second octet corresponds to the branch index
    between the intermediate and the leaf nodes.</t>
-<t>For example ...</t>
+<t>For example, this example.com A RRset:</t>
+
+<artwork><![CDATA[example.com.            300     IN      A       104.20.23.154
+example.com.            300     IN      A       172.66.147.243
+]]>
+</artwork>
+<t>has a SHA384 hash value of:</t>
+
+<artwork><![CDATA[d726b65f13f700b93bc0b1c9501949db2fc4170f76377478
+a3bcbececd3a52f0962eef0d47e6f0c64b94eba007e675fd
+]]>
+</artwork>
 </section>
 
-<section anchor="merkle-incremental-scheme-inclusion-exclusion-rules"><name>MERKLE-INCREMENTAL Scheme Inclusion/Exclusion Rules</name>
-<t>The inclusion and exclusion rules for the MERKLE-INCREMENTAL scheme
-   are identical to those for the SIMPLE scheme, described in
+<section anchor="mt3-incremental-scheme-inclusion-exclusion-rules"><name>MT3-INCREMENTAL Scheme Inclusion/Exclusion Rules</name>
+<t>The inclusion and exclusion rules for the MT3-INCREMENTAL scheme
+   are identical to those for the Simple scheme, described in
    Section 3.3.1.1 of <xref target="RFC8976"></xref>.</t>
 </section>
 
-<section anchor="merkle-incremental-scheme-digest-calculation"><name>MERKLE-INCREMENTAL Scheme Digest Calculation</name>
-<t>A zone digest using the MERKLE-INCREMENTAL scheme is calcluated
+<section anchor="mt3-incremental-scheme-digest-calculation"><name>MT3-INCREMENTAL Scheme Digest Calculation</name>
+<t>A zone digest using the MT3-INCREMENTAL scheme is calcluated
    over the Merkle tree in a bottom-up fashion.  Each node in the
    tree has its own hash value, which is calculated from the elements
    directly beneath it.</t>
 <t>A leaf node's hash value is calculated by concatenating all of its per-RRset
    hash values, sorted numerically, as input to the zone digest hash function.</t>
-<t>The root and intermediate hash values are calculated by concatenation all of
+<t>The root and intermediate hash values are calculated by concatenating all of
    its child node hash values, sorted by branch index, as input to the zone digest
    hash function.  The root node hash value becomes the zone digest, placed in the
    RDATA of the ZONEMD RR.</t>
 <t>Upon a change to a leaf node, the intermediate node hash values
    are recalculated from the bottom up, until reaching the root node.</t>
-
-<artwork><![CDATA[Verbatim fixed width
-]]>
-</artwork>
 </section>
-</section>
-
-<section anchor="security-considerations"><name>Security Considerations</name>
-<t>Words</t>
-</section>
-
-<section anchor="operational-considerations"><name>Operational Considerations</name>
-<t>Words</t>
 </section>
 
 <section anchor="iana-considerations"><name>IANA Considerations</name>
-<t>Update the ZONEMD registry</t>
+<t>IANA is requested to update
+   the &quot;ZONEMD Schemes&quot; registry
+   on the &quot;Domain Name System (DNS) Parameters&quot; web page
+   as follows:</t>
+<t>Value: TBD</t>
+<t>Description: Merkle Tree Incremental ZONEMD collation</t>
+<t>Mnemonic: MT3-INCREMENTAL</t>
+<t>Reference: [this document]</t>
+</section>
+
+<section anchor="security-considerations"><name>Security Considerations</name>
+<t>All security considerations from <xref target="RFC8976"></xref> apply to this
+   specification and the MT3-INCREMENTAL scheme.</t>
+</section>
+
+<section anchor="performance-considerations"><name>Performance Considerations</name>
+<t>The MT3-INCREMENTAL scheme requires an implementation to maintain
+   an in-memory Merkle Tree data structure of DNS zone data.  This will
+   geneally be in addition to an implementation's primary data structure
+   for referencing zone data.  As a sample data point, the .SE zone from
+   2026-06-30 with NN1 records and NN2 RRsets required an additional
+   285 MB of memory in the author's proof-of-concept implementation.</t>
+<t>Compared to the Simple scheme (<xref target="RFC8976"></xref>), the time to compute
+   an initial MT3-INCREMENTAL digest can be larger, due to the need
+   to populate the Merkle tree data structure.</t>
+<t>However, the time to compute updates to the MT3-INCREMENTAL digest
+   are essentially zero on modern computer systems, whereas the Simple
+   scheme provides no reduction in time for computing updates.</t>
+</section>
+
+<section anchor="privacy-considerations"><name>Privacy Considerations</name>
+<t>This specification has no impact on user privacy.</t>
 </section>
 
 <section anchor="acknowledgements"><name>Acknowledgements</name>
@@ -121,6 +151,16 @@
 <section anchor="changes"><name>Changes</name>
 <t>RFC Editor: Please remove this section before publication.</t>
 <t>This section lists substantial changes to the document as it is being worked on.</t>
+
+<ul spacing="compact">
+<li><t>From -00 to -01</t>
+
+<ul spacing="compact">
+<li>this</li>
+<li>that</li>
+<li>the other</li>
+</ul></li>
+</ul>
 </section>
 
 </middle>
