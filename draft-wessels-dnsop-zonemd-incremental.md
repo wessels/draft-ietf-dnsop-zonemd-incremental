@@ -36,10 +36,10 @@ coding = "utf-8"
 
    The ZONEMD Resource Record provides data origin authentication for
    DNS zones as a whole, by embedding a cryptographic hash inside the
-   zone itself.  This allows recipients to verifiy that zone data has
+   zone itself.  This allows recipients to verify that zone data has
    not been modified since originally published by the zone operator.
 
-   [@!RFC8976] defined a single ZONEMD coallation scheme, the Simple
+   [@!RFC8976] defined a single ZONEMD collation scheme, the Simple
    scheme, which requires processing all zone data any time the zone
    is updated.  This document describes the Incremental scheme, which
    uses a Merkle tree to more efficiently generate ZONEMD hashes for
@@ -59,7 +59,7 @@ coding = "utf-8"
 
    This document describes a new ZONEMD collation scheme better suited to
    large zones and zones with frequent updates.  It leverages the Merkle
-   tree data structure, which requires only hash calcuation updates of
+   tree data structure, which requires only hash calculation updates of
    nodes along the path between the root node and a leaf node.
 
    The Incremental scheme requires implementations to maintain a Merkle
@@ -77,7 +77,7 @@ coding = "utf-8"
 
 ## MT3-INCREMENTAL Data Structure
 
-   The MT3-INCREMENTAL data strcture is a Merkle tree that is three
+   The MT3-INCREMENTAL data structure is a Merkle tree that is three
    levels deep and where every non-leaf node has branches to 256 child
    nodes.
 
@@ -131,7 +131,7 @@ a3bcbececd3a52f0962eef0d47e6f0c64b94eba007e675fd
 
 ## MT3-INCREMENTAL Scheme Digest Calculation
 
-   A zone digest using the MT3-INCREMENTAL scheme is calcluated
+   A zone digest using the MT3-INCREMENTAL scheme is calculated
    over the Merkle tree in a bottom-up fashion.  Each node in the
    tree has its own hash value, which is calculated from the elements
    directly beneath it.
@@ -208,7 +208,7 @@ a3bcbececd3a52f0962eef0d47e6f0c64b94eba007e675fd
 
    The MT3-INCREMENTAL scheme requires an implementation to maintain
    an in-memory Merkle Tree data structure of DNS zone data.  This will
-   geneally be in addition to an implementation's primary data structure
+   generally be in addition to an implementation's primary data structure
    for referencing zone data.  As a sample data point, the .SE zone from
    2026-06-30 with NN1 records and NN2 RRsets required an additional
    285 MB of memory in the author's proof-of-concept implementation.
