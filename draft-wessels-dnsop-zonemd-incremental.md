@@ -51,7 +51,7 @@ coding = "utf-8"
 
 # Introduction
 
-   The ZONEMD Simple scheme works by iterating over all RRsets in zone
+   The ZONEMD Simple scheme works by iterating over all RRsets in a zone
    in canonical order.  At each iteration the wire format of each RRset
    is given as input to the hashing function.  This necessarily means
    that any update, insertion, or deletion to the zone requires another
