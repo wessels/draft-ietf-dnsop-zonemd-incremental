@@ -34,7 +34,8 @@ coding = "utf-8"
 
 .# Abstract
 
-   The ZONEMD Resource Record provides data origin authentication for
+   The ZONEMD Resource Record provides data origin authentication
+   and evidence of consistency for
    DNS zones as a whole, by embedding a cryptographic hash inside the
    zone itself.  This allows recipients to verify that zone data has
    not been modified since originally published by the zone operator.
