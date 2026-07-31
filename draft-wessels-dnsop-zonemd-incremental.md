@@ -244,6 +244,56 @@ a3bcbececd3a52f0962eef0d47e6f0c64b94eba007e675fd
      - that
      - the other
 
+# Appendix: Design Decisions
+
+## Use of Merkle Tree
+
+   Merkle Tree ensures strong cryptographic properties of the resulting hash
+   while enabling tiny updates to the large structure to be processed in
+   logarithmic time.
+
+   A proposed alternative was to simply XOR the hashes of individual RRsets.
+   This would be much simpler to implement, wouldn't need any persistent
+   data structures, would be much faster to compute, and would even allow
+   validating an incremental change without accessing the whole zone. However,
+   such ZONEMD would not ensure cryptographic protection and could only serve
+   as a checksum against random errors.
+
+## Shape of the Tree
+
+   Most of design decisions were around the depth and width (how many child nodes
+   a branch node can have) of the Merkle Tree and if it should be a Radix Tree
+   (collapsing branch nodes with signle child). The following variants were
+   experimentally implemented and compared by measuring their time and memory
+   complexity in various scenarios (many tiny zones, one TLD-like large zone):
+
+   * Binary Radix Tree
+   * 256-ary Radix Tree
+   * 256-ary Static Tree with Depth 2
+   * 256-ary Static Tree with Depth 3
+   * 256-ary Static Tree with Depth 4
+
+   TODO include the exact results here, and how?
+
+   The penultimate option proved versatile and almost best in each scenario.
+   Even the proposal of defining more than one ZONEMD Scheme with different tree
+   depths proved unnecessary.
+
+   Anyway, the effectivity for tiny zones is not too important since the users
+   can simply use the Simple Scheme for them.
+
+## Choice of Atomic Hashable
+
+   Alternatively to hashing each RRset in the zone, it was proposed to either
+   separately hash each single Resource Record, or to hash whole Node (all RRsets
+   within the Domain Name) together. The former option would ease update processing,
+   since adding or removing a RR in an existing RRset would just lead to single update
+   in the tree, opposedly to recostructing the two versions of the affected RRset and
+   hashing both; however, the resulting Merkle Tree would be much larger. The latter
+   option would lead to smaller Tree, but less effective by re-hashing the two
+   versions of the whole node, including the zone apex, which is updated each time
+   anyway. In short, using the RRset as the primary hashable object is a compromise,
+   a middle ground.
 
 {backmatter}
 
