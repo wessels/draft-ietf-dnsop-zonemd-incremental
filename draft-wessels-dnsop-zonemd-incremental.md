@@ -95,6 +95,13 @@ coding = "utf-8"
    described in Section 2.2.3 of [@!RFC8976].  At this time only SHA384
    and SHA512 are specified for use with ZONEMD.
 
+   Note: although the description here is for a full tree (i.e., 256 inner
+   nodes and 65,536 leaf nodes), an implementation need not always build
+   a full tree, depending on the size and contents of a particular zone.
+   Nodes can be allocated and connected on demand, only when needed to
+   store a particular RRset in the data structure.  Empty or non-existent
+   nodes are not used in the digest caulcation algorithm.
+
 ## Locating an RRset
 
    To identify the location of an RRset in the MT3-INCREMENTAL data structure, its
@@ -135,7 +142,7 @@ example.com.            300     IN      AAAA    2606:4700:10::6814:179a
    A zone digest using the MT3-INCREMENTAL scheme is calculated
    over the Merkle tree in a bottom-up fashion.  Each node in the
    tree has its own hash value, which is calculated from the elements
-   directly beneath it.
+   directly beneath it.  Empty nodes are ignored.
 
    A leaf node's hash value is calculated by concatenating all of its per-RRset
    hash values, sorted numerically, as input to the zone digest hash function.
