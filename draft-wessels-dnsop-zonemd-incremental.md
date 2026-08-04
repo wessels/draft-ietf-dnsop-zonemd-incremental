@@ -1,5 +1,5 @@
 %%%
-title = "The Incremental Scheme for ZONEMD"
+title = "The MT3-Incremental Scheme for ZONEMD"
 docName = "@DOCNAME@"
 category = "std"
 ipr = "trust200902"
@@ -40,9 +40,9 @@ coding = "utf-8"
    zone itself.  This allows recipients to verify that zone data has
    not been modified since originally published by the zone operator.
 
-   [@!RFC8976] defined a single ZONEMD collation scheme, the Simple
+   [@!RFC8976] defined a single ZONEMD collation scheme, the SIMPLE
    scheme, which requires processing all zone data any time the zone
-   is updated.  This document describes the Incremental scheme, which
+   is updated.  This document describes the MT3-INCREMENTAL scheme, which
    uses a Merkle tree to more efficiently generate ZONEMD hashes for
    zone updates.
 
@@ -51,11 +51,11 @@ coding = "utf-8"
 
 # Introduction
 
-   The ZONEMD Simple scheme works by iterating over all RRsets in a zone
+   The ZONEMD SIMPLE scheme works by iterating over all RRsets in a zone
    in canonical order.  At each iteration the wire format of each RRset
    is given as input to the hashing function.  This necessarily means
    that any update, insertion, or deletion to the zone requires another
-   full iteration over all RRsets.  The Simple scheme is inefficient
+   full iteration over all RRsets.  The SIMPLE scheme is inefficient
    for large zones and for zones with frequent updates.
 
    This document describes a new ZONEMD collation scheme better suited to
@@ -63,7 +63,7 @@ coding = "utf-8"
    tree data structure, which requires only hash calculation updates of
    nodes along the path between the root node and a leaf node.
 
-   The Incremental scheme requires implementations to maintain a Merkle
+   The MT3-INCREMENTAL scheme requires implementations to maintain a Merkle
    tree data structure in memory for efficient updates.
 
 ## Reserved Words
@@ -127,7 +127,7 @@ a3bcbececd3a52f0962eef0d47e6f0c64b94eba007e675fd
 ## MT3-INCREMENTAL Scheme Inclusion/Exclusion Rules
 
    The inclusion and exclusion rules for the MT3-INCREMENTAL scheme
-   are identical to those for the Simple scheme, described in 
+   are identical to those for the SIMPLE scheme, described in
    Section 3.3.1.1 of [@!RFC8976].
 
 ## MT3-INCREMENTAL Scheme Digest Calculation
@@ -208,18 +208,18 @@ a3bcbececd3a52f0962eef0d47e6f0c64b94eba007e675fd
 #  Performance Considerations
 
    The MT3-INCREMENTAL scheme requires an implementation to maintain
-   an in-memory Merkle Tree data structure of DNS zone data.  This will
+   an in-memory Merkle tree data structure of DNS zone data.  This will
    generally be in addition to an implementation's primary data structure
    for referencing zone data.  As a sample data point, the .SE zone from
    2026-06-30 with NN1 records and NN2 RRsets required an additional
    285 MB of memory in the author's proof-of-concept implementation.
 
-   Compared to the Simple scheme ([@!RFC8976]), the time to compute
+   Compared to the SIMPLE scheme ([@!RFC8976]), the time to compute
    an initial MT3-INCREMENTAL digest can be larger, due to the need
    to populate the Merkle tree data structure.
 
    However, the time to compute updates to the MT3-INCREMENTAL digest
-   are essentially zero on modern computer systems, whereas the Simple
+   are essentially zero on modern computer systems, whereas the SIMPLE
    scheme provides no reduction in time for computing updates.
 
 
