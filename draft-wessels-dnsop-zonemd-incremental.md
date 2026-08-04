@@ -105,23 +105,23 @@ coding = "utf-8"
    inner nodes.  The second octet corresponds to the branch index
    between the inner and the leaf nodes.
 
-   For example, this example.com A RRset:
+   For example, this example.com AAAA RRset:
 
 ~~~
-example.com.            300     IN      A       104.20.23.154
-example.com.            300     IN      A       172.66.147.243
+example.com.            300     IN      AAAA    2606:4700:10::ac42:93f3
+example.com.            300     IN      AAAA    2606:4700:10::6814:179a
 ~~~
 
    has a SHA384 hash value of:
 
 ~~~
-d726b65f13f700b93bc0b1c9501949db2fc4170f76377478
-a3bcbececd3a52f0962eef0d47e6f0c64b94eba007e675fd
+9cdd7d2db2c820f54df2f64690a68665d3459beacc09f216
+57d01848b2d195a95c0e24c3e7458b95b03efbdc8b252def
 ~~~
 
    Therefore, the path from the root node to this RRset's leaf node
-   would be on the 215th (0xD7) branch from the root to the inner node,
-   and the 38th (0x26) branch from the inner node to the leaf node.
+   would be on the 156th (0x9C) branch from the root to the inner node,
+   and the 221st (0xDD) branch from the inner node to the leaf node.
 
 
 ## MT3-INCREMENTAL Scheme Inclusion/Exclusion Rules
