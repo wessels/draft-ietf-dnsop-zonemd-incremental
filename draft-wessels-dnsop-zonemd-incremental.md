@@ -168,11 +168,7 @@ example.com.            300     IN      AAAA    2606:4700:10::6814:179a
    To remove an RRset from the MT3-INCREMENTAL data structure, its
    location is determined as described above.  If the RRset was previously
    placed in the data structure, its full hash value should be present
-   in the list at the corresponding leaf node.  It can then be removed
-   from the list and
-
-   The root ZONEMD digest is then calculated by updating all hash values
-   along the path from the leaf back to the root node.
+   in the list at the corresponding leaf node, from which it is then removed.
 
 ## Updating an RRset
 
