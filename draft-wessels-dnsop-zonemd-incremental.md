@@ -92,7 +92,11 @@ coding = "utf-8"
    The RRset hash values are computed by providing the canonical wire
    format of the RRset as input to a hash function.  The hash function
    is determined by the Hash Algorithm field of the ZONEMD record, as
-   described in Section 2.2.3 of [@!RFC8976].  At this time only SHA384
+   described in Section 2.2.3 of [@!RFC8976].
+   In other words, the list of RRset hashes at the leaf nodes are
+   made using the same hash algorithm as is used for the ZONEMD record
+   published in the zone.
+   At this time only SHA384
    and SHA512 are specified for use with ZONEMD.
 
    Note: although the description here is for a full tree (i.e., 256 inner
@@ -150,7 +154,7 @@ example.com.            300     IN      AAAA    2606:4700:10::6814:179a
    The root and inner hash values are calculated by concatenating all of
    its child node hash values, sorted by branch index, as input to the zone digest
    hash function.  The root node hash value becomes the zone digest, placed in the
-   RDATA of the ZONEMD RR.
+   RDATA of the apex ZONEMD RR.
 
    Upon a change to a leaf node, the inner node hash values
    are recalculated from the bottom up, until reaching the root node.
@@ -159,8 +163,8 @@ example.com.            300     IN      AAAA    2606:4700:10::6814:179a
 
    To add an RRset to the MT3-INCREMENTAL data structure (subject to
    inclusion/exclusion rules), its location is determined as described
-   above.  At the corresponding leaf node, the RRset's hash value would
-   be added to the list of RRset hash values, all of which necessarily
+   above.  At the corresponding leaf node, the RRset's hash value is
+   added to the list of RRset hash values, all of which necessarily
    start with the same two octets.
 
 ## Removing an RRset
@@ -179,7 +183,7 @@ example.com.            300     IN      AAAA    2606:4700:10::6814:179a
 
    To recompute the MT3-INCREMENTAL ZONEMD digest it is only necessary
    to update all inner hash values along paths from changed leaf nodes back
-   to the root node.  
+   to the root node.
 
    For example, when adding a new RRset to the MT3-INCREMENTAL data structure
    the following steps are taken to recompute the ZONEMD digest:
