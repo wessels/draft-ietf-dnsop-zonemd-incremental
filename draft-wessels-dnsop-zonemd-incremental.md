@@ -77,9 +77,9 @@ coding = "utf-8"
    for large zones and for zones with frequent updates.
 
    This document describes a new ZONEMD collation scheme better suited to
-   large zones and zones with frequent updates.  It leverages the Merkle
-   tree data structure, which requires only hash calculation updates of
-   nodes along the path between the root node and a leaf node.
+   large zones and zones with frequent updates.  It leverages a Merkle
+   tree data structure, which enables efficient updates by recalculating hashes
+   only for nodes along the path between the root node and a leaf node.
 
    The MT3-INCREMENTAL scheme requires implementations to maintain a Merkle
    tree data structure in memory for efficient updates.
