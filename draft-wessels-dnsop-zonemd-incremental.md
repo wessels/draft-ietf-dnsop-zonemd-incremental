@@ -215,8 +215,10 @@ a3bcbececd3a52f0962eef0d47e6f0c64b94eba007e675fd
    285 MB of memory in the author's proof-of-concept implementation.
 
    Compared to the SIMPLE scheme ([@!RFC8976]), the time to compute
-   an initial MT3-INCREMENTAL digest can be larger, due to the need
+   an initial MT3-INCREMENTAL digest can be larger in a single-threaded application, due to the need
    to populate the Merkle tree data structure.
+   However, when parallelization and multi-threading are leveraged,
+   the MT3-INCREMENTAL scheme can perform significantly better.
 
    However, the time to compute updates to the MT3-INCREMENTAL digest
    are essentially zero on modern computer systems, whereas the SIMPLE
