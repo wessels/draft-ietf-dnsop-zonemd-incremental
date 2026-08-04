@@ -29,6 +29,24 @@ coding = "utf-8"
   [author.address]
     email = "dwessels@verisign.com"
 
+[[author]]
+  initials = "L."
+  surname = "Peltan"
+  fullname = "Libor Peltan"
+  organization = "CZ.NIC"
+  country = "Czech Republic"
+  [author.address]
+    email = "libor.peltan@nic.cz"
+
+[[author]]
+  initials = "A."
+  surname = "Dradjica"
+  fullname = "Arya Dradjica"
+  organization = "NLNet Labs"
+  country = "Netherlands"
+  [author.address]
+    email = "arya@nlnetlabs.nl"
+
 
 %%%
 
