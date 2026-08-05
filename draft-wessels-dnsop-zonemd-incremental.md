@@ -60,7 +60,7 @@ coding = "utf-8"
 
    [@!RFC8976] defined a single ZONEMD collation scheme, the SIMPLE
    scheme, which requires processing all zone data any time the zone
-   is updated.  This document describes the MT3-INCREMENTAL scheme, which
+   is updated.  This document describes the MERKLE3 scheme, which
    uses a Merkle tree to more efficiently generate ZONEMD hashes for
    zone updates.
 
@@ -81,7 +81,7 @@ coding = "utf-8"
    tree data structure, which enables efficient updates by recalculating hashes
    only for nodes along the path between the root node and a leaf node.
 
-   The MT3-INCREMENTAL scheme requires implementations to maintain a Merkle
+   The MERKLE3 scheme requires implementations to maintain a Merkle
    tree data structure in memory for efficient updates.
 
 ## Reserved Words
@@ -92,11 +92,11 @@ coding = "utf-8"
    in BCP 14 [@!RFC2119] [@!RFC8174] when, and only when, they
    appear in all capitals, as shown here.
 
-# The MT3-INCREMENTAL Scheme
+# The MERKLE3 Scheme
 
-## MT3-INCREMENTAL Data Structure
+## MERKLE3 Data Structure
 
-   The MT3-INCREMENTAL data structure is a Merkle tree that is three
+   The MERKLE3 data structure is a Merkle tree that is three
    levels deep and where every non-leaf node has branches to 256 child
    nodes.
 
@@ -126,7 +126,7 @@ coding = "utf-8"
 
 ## Locating an RRset
 
-   To identify the location of an RRset in the MT3-INCREMENTAL data structure, its
+   To identify the location of an RRset in the MERKLE3 data structure, its
    hash value is first calculated using the hash algorithm identified by the
    corresponding ZONEMD digest.  Its location in the Merkle tree is
    determined by using the first two binary octets of the hash value.
@@ -153,15 +153,15 @@ example.com.            300     IN      AAAA    2606:4700:10::6814:179a
    and the 221st (0xDD) branch from the inner node to the leaf node.
 
 
-## MT3-INCREMENTAL Scheme Inclusion/Exclusion Rules
+## MERKLE3 Scheme Inclusion/Exclusion Rules
 
-   The inclusion and exclusion rules for the MT3-INCREMENTAL scheme
+   The inclusion and exclusion rules for the MERKLE3 scheme
    are identical to those for the SIMPLE scheme, described in
    Section 3.3.1.1 of [@!RFC8976].
 
-## MT3-INCREMENTAL Scheme Digest Calculation
+## MERKLE3 Scheme Digest Calculation
 
-   A zone digest using the MT3-INCREMENTAL scheme is calculated
+   A zone digest using the MERKLE3 scheme is calculated
    over the Merkle tree in a bottom-up fashion.  Each node in the
    tree has its own hash value, which is calculated from the elements
    directly beneath it.  Empty nodes are ignored.
@@ -179,7 +179,7 @@ example.com.            300     IN      AAAA    2606:4700:10::6814:179a
 
 ## Adding an RRset
 
-   To add an RRset to the MT3-INCREMENTAL data structure (subject to
+   To add an RRset to the MERKLE3 data structure (subject to
    inclusion/exclusion rules), its location is determined as described
    above.  At the corresponding leaf node, the RRset's hash value is
    added to the list of RRset hash values, all of which necessarily
@@ -187,23 +187,23 @@ example.com.            300     IN      AAAA    2606:4700:10::6814:179a
 
 ## Removing an RRset
 
-   To remove an RRset from the MT3-INCREMENTAL data structure, its
+   To remove an RRset from the MERKLE3 data structure, its
    location is determined as described above.  If the RRset was previously
    placed in the data structure, its full hash value should be present
    in the list at the corresponding leaf node, from which it is then removed.
 
 ## Updating an RRset
 
-   Updating an RRset in the MT3-INCREMENTAL data structure is equivalent
+   Updating an RRset in the MERKLE3 data structure is equivalent
    to removing the former RRset and then adding the updated RRset.
 
 ## Recomputing After Changes
 
-   To recompute the MT3-INCREMENTAL ZONEMD digest it is only necessary
+   To recompute the MERKLE3 ZONEMD digest it is only necessary
    to update all inner hash values along paths from changed leaf nodes back
    to the root node.
 
-   For example, when adding a new RRset to the MT3-INCREMENTAL data structure
+   For example, when adding a new RRset to the MERKLE3 data structure
    the following steps are taken to recompute the ZONEMD digest:
 
    1. recompute the hash value for the leaf node, from the list of RRset hashes at that leaf node.
@@ -221,18 +221,18 @@ example.com.            300     IN      AAAA    2606:4700:10::6814:179a
 
    Description: Merkle Tree Incremental ZONEMD collation
 
-   Mnemonic: MT3-INCREMENTAL
+   Mnemonic: MERKLE3
 
    Reference: [this document]
 
 #  Security Considerations
 
    All security considerations from [@!RFC8976] apply to this
-   specification and the MT3-INCREMENTAL scheme.
+   specification and the MERKLE3 scheme.
 
 #  Performance Considerations
 
-   The MT3-INCREMENTAL scheme requires an implementation to maintain
+   The MERKLE3 scheme requires an implementation to maintain
    an in-memory Merkle tree data structure of DNS zone data.  This will
    generally be in addition to an implementation's primary data structure
    for referencing zone data.  As a sample data point, the .SE zone from
@@ -240,12 +240,12 @@ example.com.            300     IN      AAAA    2606:4700:10::6814:179a
    285 MB of memory in the author's proof-of-concept implementation.
 
    Compared to the SIMPLE scheme ([@!RFC8976]), the time to compute
-   an initial MT3-INCREMENTAL digest can be larger in a single-threaded application, due to the need
+   an initial MERKLE3 digest can be larger in a single-threaded application, due to the need
    to populate the Merkle tree data structure.
    However, when parallelization and multi-threading are leveraged,
-   the MT3-INCREMENTAL scheme can perform significantly better.
+   the MERKLE3 scheme can perform significantly better.
 
-   However, the time to compute updates to the MT3-INCREMENTAL digest
+   However, the time to compute updates to the MERKLE3 digest
    are essentially zero on modern computer systems, whereas the SIMPLE
    scheme provides no reduction in time for computing updates.
 
