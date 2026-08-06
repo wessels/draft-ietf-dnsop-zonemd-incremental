@@ -40,9 +40,9 @@ coding = "utf-8"
 
 [[author]]
   initials = "A."
-  surname = "Dradjica"
-  fullname = "Arya Dradjica"
-  organization = "NLNet Labs"
+  surname = "Khanna"
+  fullname = "Arya Khanna"
+  organization = "NLnet Labs"
   country = "Netherlands"
   [author.address]
     email = "arya@nlnetlabs.nl"
