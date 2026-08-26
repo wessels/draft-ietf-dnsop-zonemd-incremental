@@ -1,5 +1,5 @@
 %%%
-title = "The MT3-Incremental Scheme for ZONEMD"
+title = "The MERKLE3-Incremental Scheme for ZONEMD"
 docName = "@DOCNAME@"
 category = "std"
 ipr = "trust200902"
@@ -96,43 +96,38 @@ coding = "utf-8"
 
 ## MERKLE3 Data Structure
 
-   The MERKLE3 data structure is a Merkle tree that is three
-   levels deep and where every non-leaf node has branches to 256 child
-   nodes.
+   The MERKLE3 data structure is a Merkle tree (trie) of a homogeneous depth 3.
 
-   At depth one is the root node with branches to 256 child nodes.
+   At depth zero is the root node with branches to at most 256 child nodes.
 
-   At depth two are 256 inner nodes, each of which has branches
-   to 256 leaf nodes.
+   At depth one are at most 256 branch nodes, each of which has branches
+   to at most 256 child nodes.
 
-   At depth three are 65,536 leaf nodes.  Each leaf node consists of
-   an array/list of a variable number of hash values, one per RRset.
-   The RRset hash values are computed by providing the canonical wire
-   format of the RRset as input to a hash function.  The hash function
+   At depth two are at most 65536 branch nodes, each of which has branches
+   to arbitrary number of leaf nodes.
+
+   Branch nodes with no childs are considered non-existent.
+   Empty tree (with no leaf) doesn't make sense as it has no root node.
+
+   Each leaf node represents a hash of a single RRset in the zone.
+   The hash function and the canonical wire format of the RRset as input
    is determined by the Hash Algorithm field of the ZONEMD record, as
    described in Section 2.2.3 of [@!RFC8976].
-   In other words, the list of RRset hashes at the leaf nodes are
-   made using the same hash algorithm as is used for the ZONEMD record
-   published in the zone.
    At this time only SHA384
    and SHA512 are specified for use with ZONEMD.
 
-   Note: although the description here is for a full tree (i.e., 256 inner
-   nodes and 65,536 leaf nodes), an implementation need not always build
-   a full tree, depending on the size and contents of a particular zone.
-   Nodes can be allocated and connected on demand, only when needed to
-   store a particular RRset in the data structure.  Empty or non-existent
-   nodes are not used in the digest caulcation algorithm.
+   In each branch node, the childs are sorted by the leaf hash values
+   (or their common prefixes, in depths 0, 1 and 2).
 
 ## Locating an RRset
 
    To identify the location of an RRset in the MERKLE3 data structure, its
    hash value is first calculated using the hash algorithm identified by the
    corresponding ZONEMD digest.  Its location in the Merkle tree is
-   determined by using the first two binary octets of the hash value.
+   determined by the hash value.
    The first octet corresponds to the branch index between the root and
-   inner nodes.  The second octet corresponds to the branch index
-   between the inner and the leaf nodes.
+   depth-one branch nodes.  The second octet corresponds to the branch index
+   between the depth-one and depth-two branch nodes.
 
    For example, this example.com AAAA RRset:
 
@@ -145,13 +140,13 @@ example.com.            300     IN      AAAA    2606:4700:10::6814:179a
 
 ~~~
 9cdd7d2db2c820f54df2f64690a68665d3459beacc09f216
-57d01848b2d195a95c0e24c3e7458b95b03efbdc8b252def
 ~~~
 
    Therefore, the path from the root node to this RRset's leaf node
    would be on the 156th (0x9C) branch from the root to the inner node,
    and the 221st (0xDD) branch from the inner node to the leaf node.
 
+   TODO this section needs some love or complete removal.
 
 ## MERKLE3 Scheme Inclusion/Exclusion Rules
 
@@ -162,16 +157,21 @@ example.com.            300     IN      AAAA    2606:4700:10::6814:179a
 ## MERKLE3 Scheme Digest Calculation
 
    A zone digest using the MERKLE3 scheme is calculated
-   over the Merkle tree in a bottom-up fashion.  Each node in the
+   over the Merkle tree in a bottom-up fashion.
+   Each branch node in the
    tree has its own hash value, which is calculated from the elements
-   directly beneath it.  Empty nodes are ignored.
+   directly beneath it.
 
-   A leaf node's hash value is calculated by concatenating all of its per-RRset
-   hash values, sorted numerically, as input to the zone digest hash function.
+   A leaf node's hash value is directly the RRset hash value and correcponds
+   to the leaf position in the tree.
 
-   The root and inner hash values are calculated by concatenating all of
-   its child node hash values, sorted by branch index, as input to the zone digest
-   hash function.  The root node hash value becomes the zone digest, placed in the
+   A branch node (including root) hash value is calculated by concatenating
+   all of its childs' hash values, sorted numerically, as input to the zone
+   digest hash function. Note that for branch nodes, their assigned hash value
+   may (in fact, usually will) not correspond to its position in the tree
+   (and the common prefix of leaves' hash values).
+
+   The root node hash value becomes the zone digest, placed in the
    RDATA of the apex ZONEMD RR.
 
    Upon a change to a leaf node, the inner node hash values
@@ -181,16 +181,17 @@ example.com.            300     IN      AAAA    2606:4700:10::6814:179a
 
    To add an RRset to the MERKLE3 data structure (subject to
    inclusion/exclusion rules), its location is determined as described
-   above.  At the corresponding leaf node, the RRset's hash value is
-   added to the list of RRset hash values, all of which necessarily
-   start with the same two octets.
+   above.
+   New leaf node is added with the RRset's hash, and a path of branch
+   nodes up to the tree as well if they don't exist yet.
 
 ## Removing an RRset
 
    To remove an RRset from the MERKLE3 data structure, its
    location is determined as described above.  If the RRset was previously
-   placed in the data structure, its full hash value should be present
-   in the list at the corresponding leaf node, from which it is then removed.
+   placed in the data structure, its full hash value should have
+   the corresponding leaf node, from which it is then removed.
+   Any branch nodes becoming empty are removed as well.
 
 ## Updating an RRset
 
@@ -202,13 +203,6 @@ example.com.            300     IN      AAAA    2606:4700:10::6814:179a
    To recompute the MERKLE3 ZONEMD digest it is only necessary
    to update all inner hash values along paths from changed leaf nodes back
    to the root node.
-
-   For example, when adding a new RRset to the MERKLE3 data structure
-   the following steps are taken to recompute the ZONEMD digest:
-
-   1. recompute the hash value for the leaf node, from the list of RRset hashes at that leaf node.
-   2. recompute the hash value for the inner node that is the parent of the leaf node.
-   3. recompute the root node hash value.
 
 #  IANA Considerations
 
