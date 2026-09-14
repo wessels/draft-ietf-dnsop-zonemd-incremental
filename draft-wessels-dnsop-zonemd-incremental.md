@@ -52,37 +52,42 @@ coding = "utf-8"
 
 .# Abstract
 
-   The ZONEMD Resource Record provides data origin authentication
-   and evidence of consistency for
-   DNS zones as a whole, by embedding a cryptographic hash inside the
-   zone itself.  This allows recipients to verify that zone data has
-   not been modified since originally published by the zone operator.
+   The ZONEMD Resource Record affirms the integrity of whole DNS zones and helps verify their authenticity.
+   It embeds a cryptographic hash of the zone data, collated in a configurable way.
+   It is used as a checksum for zone transfers and sometimes for authenticating glue records.
 
-   [@!RFC8976] defined a single ZONEMD collation scheme, the SIMPLE
-   scheme, which requires processing all zone data any time the zone
-   is updated.  This document describes the MERKLE3 scheme, which
-   uses a Merkle tree to more efficiently generate ZONEMD hashes for
-   zone updates.
+   [@!RFC8976] defined a single ZONEMD collation scheme, SIMPLE.
+   It is sufficient for small and infrequently updated zones.
+   This document introduces the MERKLE3 scheme, targeting large, dynamic zones.
+   It uses a Merkle tree to enable parallelism and incremental computation.
 
 {mainmatter}
 
 
 # Introduction
 
-   The ZONEMD SIMPLE scheme works by iterating over all RRsets in a zone
-   in canonical order.  At each iteration the wire format of each RRset
-   is given as input to the hashing function.  This necessarily means
-   that any update, insertion, or deletion to the zone requires another
-   full iteration over all RRsets.  The SIMPLE scheme is inefficient
-   for large zones and for zones with frequent updates.
+   A ZONEMD record is generated with a choice of hash function and collation scheme.
+   For the hash function, choices of SHA-384 and SHA-512 have been defined.
+   The collation scheme decides how the hash function will be applied to the zone data.
+   The SIMPLE scheme hashes the concatenation of the records in the zone, in canonical order.
+   With its definition, [@!RFC8976] notes:
 
-   This document describes a new ZONEMD collation scheme better suited to
-   large zones and zones with frequent updates.  It leverages a Merkle
-   tree data structure, which enables efficient updates by recalculating hashes
-   only for nodes along the path between the root node and a leaf node.
+   > For the SIMPLE scheme, the digest is calculated over the zone as a whole.
+   > This means that a change to a single RR in the zone requires iterating over all RRs in the zone to recalculate the digest.
+   > SIMPLE is a good choice for zones that are small and/or stable, but it is probably not good for zones that are large and/or dynamic.
 
-   The MERKLE3 scheme requires implementations to maintain a Merkle
-   tree data structure in memory for efficient updates.
+   SHA-384 and SHA-512 do not support parallelism or efficient incremental computation.
+   On average, every change to the zone requires re-hashing half of the zone contents, *serially*.
+   Today, ZONEMD computation is the only step for signing a zone that cannot be parallelized.
+
+   This document describes a new collation scheme targeting large, dynamic zones.
+   It organizes the records in the zone in a Merkle tree structure.
+   Records have fixed positions in the tree, so they are unaffected by additions and removals.
+   Changes to the zone only require re-hashing the affected nodes of the tree and their parents.
+
+   Using this scheme, ZONEMD checksums can be computed in a highly-parallel fashion.
+   Given the prevalence of many-core CPUs, an order-of-magnitude speedup is achievable.
+   Implementations can persist the tree structure for incremental computation, with even better speedups.
 
 ## Reserved Words
 
@@ -94,59 +99,62 @@ coding = "utf-8"
 
 # The MERKLE3 Scheme
 
-## MERKLE3 Data Structure
+## Computation
 
-   The MERKLE3 data structure is a Merkle tree (trie) of a homogeneous depth 3.
+   The MERKLE3 data structure is a trie.
+   It consists of four levels:
+   level 0 (the root node),
+   level 1 (up to 256 nodes),
+   level 2 (up to 65,536 nodes),
+   and level 3 (individual RRsets).
+   The first three levels (0, 1, and 2) are _inner nodes_.
+   Nodes in levels 0 and 1 have up to 256 children each.
+   Children are identified by an unsigned 8-bit index from 0 to 255.
 
-   At depth zero is the root node with branches to at most 256 child nodes.
+   Every RRset is individually hashed, using the selected ZONEMD hash algorithm.
+   The records in the RRset are sorted in DNSSEC canonical order, serialized in the DNSSEC canonical form, concatenated together, and hashed once.
+   Each RRset is assigned to a level-2 node in the tree, based on the first two bytes of its hash.
+   The first byte selects a node in level 1 and the second selects a node in level 2.
 
-   At depth one are at most 256 branch nodes, each of which has branches
-   to at most 256 child nodes.
+   Within each level-2 node, RRsets are sorted lexicographically by their hashes.
+   These hashes are concatenated and hashed, using the same hash algorithm, to produce the hash of the level-2 node.
+   Level-2 nodes that have no children are not hashed at all.
 
-   At depth two are at most 65536 branch nodes, each of which has branches
-   to arbitrary number of leaf nodes.
+   Then, the hashes of the level-1 nodes are computed.
+   The children of each level-1 node (those that exist) are ordered by index.
+   The hashes are concatenated and hashed to produce the hash of the level-1 node.
+   Again, level-1 nodes that have no children are not hashed at all.
 
-   Branch nodes with no childs are considered non-existent.
-   Empty tree (with no leaf) doesn't make sense as it has no root node.
+   The root node is hashed from the level-1 nodes in the same way.
+   The hash of the root node is the final digest that will be stored in the ZONEMD record.
 
-   Each leaf node represents a hash of a single RRset in the zone.
-   The hash function and the canonical wire format of the RRset as input
-   is determined by the Hash Algorithm field of the ZONEMD record, as
-   described in Section 2.2.3 of [@!RFC8976].
-   At this time only SHA384
-   and SHA512 are specified for use with ZONEMD.
+## Worked example
 
-   In each branch node, the childs are sorted by the leaf hash values
-   (or their common prefixes, in depths 0, 1 and 2).
-
-## Locating an RRset
-
-   To identify the location of an RRset in the MERKLE3 data structure, its
-   hash value is first calculated using the hash algorithm identified by the
-   corresponding ZONEMD digest.  Its location in the Merkle tree is
-   determined by the hash value.
-   The first octet corresponds to the branch index between the root and
-   depth-one branch nodes.  The second octet corresponds to the branch index
-   between the depth-one and depth-two branch nodes.
-
-   For example, this example.com AAAA RRset:
+   Consider the following zone:
 
 ~~~
-example.com.            300     IN      AAAA    2606:4700:10::ac42:93f3
-example.com.            300     IN      AAAA    2606:4700:10::6814:179a
+example.com.  300   IN   SOA    mname.example.com. rname.example.com. 1 3600 7200 43200 300
+example.com.  300   IN   AAAA   2606:4700:10::ac42:93f3
+example.com.  300   IN   AAAA   2606:4700:10::6814:179a
 ~~~
 
-   has a SHA384 hash value of:
+   The first AAAA record is serialized as the following bytes, in hexadecimal:
 
 ~~~
-9cdd7d2db2c820f54df2f64690a68665d3459beacc09f216
+07 6578616D706C65 03 636F6D 00 0001 0001 0000012C 0010 2606 4700 0010 0000 0000 0000 AC42 93F3
 ~~~
 
-   Therefore, the path from the root node to this RRset's leaf node
-   would be on the 156th (0x9C) branch from the root to the inner node,
-   and the 221st (0xDD) branch from the inner node to the leaf node.
+   The SOA RRset has a SHA384 hash value of:
 
-   TODO this section needs some love or complete removal.
+~~~
+B5EE62F73B9094B4 B0E1FCF899FADBD5 5972359A355C82C9 24CEA28A1B73959E CA9D6D00670FF32A 873B8AD03721A181
+~~~
+
+   The first two bytes are relevant. The RRset will be positioned under the root
+   node, under its (level-1) child node at index 181 (0xB5), under its (level-2)
+   child node at index 238 (0xEE).
+
+   TODO: the overall digest for this zone
 
 ## MERKLE3 Scheme Inclusion/Exclusion Rules
 
