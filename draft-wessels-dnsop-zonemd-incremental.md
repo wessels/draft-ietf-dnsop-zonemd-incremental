@@ -170,11 +170,11 @@ B5EE62F73B9094B4 B0E1FCF899FADBD5 5972359A355C82C9 24CEA28A1B73959E CA9D6D00670F
    tree has its own hash value, which is calculated from the elements
    directly beneath it.
 
-   A leaf node's hash value is directly the RRset hash value and correcponds
+   A leaf node's hash value is directly the RRset hash value and corresponds
    to the leaf position in the tree.
 
    A branch node (including root) hash value is calculated by concatenating
-   all of its childs' hash values, sorted numerically, as input to the zone
+   all of its child node hash values, sorted numerically, as input to the zone
    digest hash function. Note that for branch nodes, their assigned hash value
    may (in fact, usually will) not correspond to its position in the tree
    (and the common prefix of leaves' hash values).
@@ -292,7 +292,7 @@ B5EE62F73B9094B4 B0E1FCF899FADBD5 5972359A355C82C9 24CEA28A1B73959E CA9D6D00670F
 
    Most of design decisions were around the depth and width (how many child nodes
    a branch node can have) of the Merkle Tree and if it should be a Radix Tree
-   (collapsing branch nodes with signle child). The following variants were
+   (collapsing branch nodes with single child). The following variants were
    experimentally implemented and compared by measuring their time and memory
    complexity in various scenarios (many tiny zones, one TLD-like large zone):
 
@@ -317,7 +317,7 @@ B5EE62F73B9094B4 B0E1FCF899FADBD5 5972359A355C82C9 24CEA28A1B73959E CA9D6D00670F
    separately hash each single Resource Record, or to hash whole Node (all RRsets
    within the Domain Name) together. The former option would ease update processing,
    since adding or removing a RR in an existing RRset would just lead to single update
-   in the tree, opposedly to recostructing the two versions of the affected RRset and
+   in the tree, opposedly to reconstructing the two versions of the affected RRset and
    hashing both; however, the resulting Merkle Tree would be much larger. The latter
    option would lead to smaller Tree, but less effective by re-hashing the two
    versions of the whole node, including the zone apex, which is updated each time
