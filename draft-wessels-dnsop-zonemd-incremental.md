@@ -68,7 +68,7 @@ coding = "utf-8"
 
    A ZONEMD record is generated with a choice of hash function and collation scheme.
    For the hash function, choices of SHA-384 and SHA-512 have been defined.
-   The collation scheme decides how the hash function will be applied to the zone data.
+   The collation scheme decides how the hash function is applied to the zone data.
    The SIMPLE scheme hashes the concatenation of the records in the zone, in canonical order.
    With its definition, [@!RFC8976] notes:
 
@@ -126,7 +126,7 @@ coding = "utf-8"
    Again, level-1 nodes that have no children are not hashed at all.
 
    The root node is hashed from the level-1 nodes in the same way.
-   The hash of the root node is the final digest that will be stored in the ZONEMD record.
+   The hash of the root node is the final digest that is stored in the ZONEMD record.
 
 ## Worked example
 
@@ -150,7 +150,7 @@ example.com.  300   IN   AAAA   2606:4700:10::6814:179a
 B5EE62F73B9094B4 B0E1FCF899FADBD5 5972359A355C82C9 24CEA28A1B73959E CA9D6D00670FF32A 873B8AD03721A181
 ~~~
 
-   The first two bytes are relevant. The RRset will be positioned under the root
+   The first two bytes are relevant. The RRset is positioned under the root
    node, under its (level-1) child node at index 181 (0xB5), under its (level-2)
    child node at index 238 (0xEE).
 
