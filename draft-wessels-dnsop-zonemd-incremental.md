@@ -190,7 +190,7 @@ B5EE62F73B9094B4 B0E1FCF899FADBD5 5972359A355C82C9 24CEA28A1B73959E CA9D6D00670F
    To add an RRset to the MERKLE3 data structure (subject to
    inclusion/exclusion rules), its location is determined as described
    above.
-   New leaf node is added with the RRset's hash, and a path of branch
+   A new leaf node is added with the RRset's hash, and a path of branch
    nodes up to the tree as well if they don't exist yet.
 
 ## Removing an RRset
