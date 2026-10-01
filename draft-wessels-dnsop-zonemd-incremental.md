@@ -251,6 +251,10 @@ B5EE62F73B9094B4 B0E1FCF899FADBD5 5972359A355C82C9 24CEA28A1B73959E CA9D6D00670F
    are essentially zero on modern computer systems, whereas the SIMPLE
    scheme provides no reduction in time for computing updates.
 
+   The above considerations apply only to well-balanced Merkle trees.
+   An attacker with the ability to insert RRsets into a zone may be able to intentionally unbalance the MERKLE3 data structure, similar to the Nurgle attack [@?Nurgle].
+   The performance of the MERKLE3 scheme on an unbalanced tree may approach that of the SIMPLE scheme.
+
 
 #  Privacy Considerations
 
@@ -327,3 +331,19 @@ B5EE62F73B9094B4 B0E1FCF899FADBD5 5972359A355C82C9 24CEA28A1B73959E CA9D6D00670F
 {backmatter}
 
 {numbered="false"}
+
+<reference anchor="Nurgle" target="http://dx.doi.org/10.1109/SP54263.2024.00125">
+   <front>
+      <title>Nurgle: Exacerbating Resource Consumption in Blockchain State Storage via MPT Manipulation</title>
+      <author fullname="Zheyuan He"> <organization></organization> </author>
+      <author fullname="Zihao Li"> <organization></organization> </author>
+      <author fullname="Ao Qiao"> <organization></organization> </author>
+      <author fullname="Xiapu Luo"> <organization></organization> </author>
+      <author fullname="Xiaosong Zhang,"> <organization></organization> </author>
+      <author fullname="Ting Chen"> <organization></organization> </author>
+      <author fullname="Shuwei Song"> <organization></organization> </author>
+      <author fullname="Dijun Liu"> <organization></organization> </author>
+      <author fullname="Weina Miu"> <organization></organization> </author>
+      <date year="2024" month="May"></date>
+   </front>
+</reference>
