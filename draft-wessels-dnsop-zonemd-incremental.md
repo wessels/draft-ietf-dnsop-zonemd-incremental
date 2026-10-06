@@ -253,7 +253,8 @@ B5EE62F73B9094B4 B0E1FCF899FADBD5 5972359A355C82C9 24CEA28A1B73959E CA9D6D00670F
 
    The above considerations apply only to well-balanced Merkle trees.
    An attacker with the ability to insert RRsets into a zone may be able to intentionally unbalance the MERKLE3 data structure, similar to the Nurgle attack [@?Nurgle].
-   The performance of the MERKLE3 scheme on an unbalanced tree may approach that of the SIMPLE scheme.
+   The performance of the MERKLE3 scheme in such an attack may be degraded at a rate proportional to the fraction of RRsets under the attacker's control.
+   In other words, an attacker would need to control a significant fraction of RRsets in a large zone in order to affect performance.
 
 
 #  Privacy Considerations
