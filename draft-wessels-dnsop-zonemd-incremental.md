@@ -54,7 +54,7 @@ coding = "utf-8"
 
    The ZONEMD Resource Record affirms the integrity of whole DNS zones and helps verify their authenticity.
    It embeds a cryptographic hash of the zone data, collated in a configurable way.
-   It is used as a checksum for zone transfers and sometimes for authenticating glue records.
+   It is used as a checksum for zone transfers between name servers.
 
    [@!RFC8976] defined a single ZONEMD collation scheme, SIMPLE.
    It is sufficient for small and infrequently updated zones.
