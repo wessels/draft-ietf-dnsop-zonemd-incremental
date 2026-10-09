@@ -77,9 +77,11 @@ coding = "utf-8"
    > This means that a change to a single RR in the zone requires iterating over all RRs in the zone to recalculate the digest.
    > SIMPLE is a good choice for zones that are small and/or stable, but it is probably not good for zones that are large and/or dynamic.
 
+<!--
    SHA-384 and SHA-512 do not support parallelism or efficient incremental computation.
    On average, every change to the zone requires re-hashing half of the zone contents, *serially*.
    Today, ZONEMD computation is the only step for signing a zone that cannot be parallelized.
+-->
 
    This document describes a new collation scheme targeting large, dynamic zones.
    It organizes the records in the zone in a Merkle tree structure.
