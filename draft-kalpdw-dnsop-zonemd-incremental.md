@@ -136,28 +136,78 @@ coding = "utf-8"
    Consider the following zone:
 
 ~~~
-example.com.  300   IN   SOA    mname.example.com. rname.example.com. 1 3600 7200 43200 300
-example.com.  300   IN   AAAA   2606:4700:10::ac42:93f3
-example.com.  300   IN   AAAA   2606:4700:10::6814:179a
+example.com.  300  IN  SOA   mname.example.com. rname.example.com. (
+                             1 3600 7200 43200 300 )
+example.com.   60  I   NS    ns1.foo.example.
+example.com.  300  IN  AAAA  2606:4700:10::ac42:93f3
+example.com.  300  IN  AAAA  2606:4700:10::6814:179a
 ~~~
 
-   The first AAAA record is serialized as the following bytes, in hexadecimal:
+   The NS RRset is serialized as the following bytes, in hexadecimal:
 
 ~~~
-07 6578616D706C65 03 636F6D 00 0001 0001 0000012C 0010 2606 4700 0010 0000 0000 0000 AC42 93F3
+07 6578616D706C65 03 636F6D 00 0002 0001 0000003C 0011 03 6E7331 03
+666F6F 07 6578616D706C65 00
+~~~
+
+   The NS RRset has a SHA384 hash value of:
+
+~~~
+089AAD19F7AE6D16 D4BBA103E784AA8F 0E2818E56921C439 5F59EC80A3C4C856
+10D50D7D5B3A1DD7 8C51C0ED5A9F45CC
+~~~
+
+   The first two bytes are relevant. The RRset is positioned under the root
+   node, under its (level-1) child node at index 8 (0x08), under its (level-2)
+   child node at index 154 (0x9A).
+
+   The SOA RRset is serialized as the following bytes, in hexadecimal:
+
+~~~
+07 6578616D706C65 03 636F6D 00 0006 0001 0000012C 003A 05 6D6E616D65
+07 6578616D706C65 03 636F6D 00 05 726E616D65 07 6578616D706C65 03
+636F6D 00 00000001 00000E1 000001C2 00000A8C 00000012C
 ~~~
 
    The SOA RRset has a SHA384 hash value of:
 
 ~~~
-B5EE62F73B9094B4 B0E1FCF899FADBD5 5972359A355C82C9 24CEA28A1B73959E CA9D6D00670FF32A 873B8AD03721A181
+B5EE62F73B9094B4 B0E1FCF899FADBD5 5972359A355C82C9 24CEA28A1B73959E
+CA9D6D00670FF32A 873B8AD03721A181
 ~~~
 
-   The first two bytes are relevant. The RRset is positioned under the root
+   This RRset is positioned under the root
    node, under its (level-1) child node at index 181 (0xB5), under its (level-2)
    child node at index 238 (0xEE).
 
-   TODO: the overall digest for this zone
+   The two records in the AAAA RRset are serialized as the following bytes, in hexadecimal:
+
+~~~
+07 6578616D706C65 03 636F6D 00 001C 0001 0000012C 0010 2606 4700 0010
+0000 0000 0000 6814 179A
+07 6578616D706C65 03 636F6D 00 001C 0001 0000012C 0010 2606 4700 0010
+0000 0000 0000 AC42 93F3
+~~~
+
+   The AAAA RRset has a SHA834 hash value of:
+
+~~~
+9CDD7D2DB2C820F5 4DF2F64690A68665 D3459BEACC09F216 57D01848B2D195A9
+5C0E24C3E7458B95 B03EFBDC8B252DEF
+~~~
+
+   This RRset is positioned under the root
+   node, under its (level-1) child node at index 156 (0x9C), under its (level-2)
+   child node at index 221 (0xDD).
+
+The final MERKLE3 ZONEMD SHA384 digest for this zone is:
+
+~~~
+5F0AD47C76A59B6E 287E221C296EA5C8 99AE5D473E4AE0E3 FF0FCEDF3E2345BE
+7FC9F27CA1307775 4C98BB53B6288B64
+~~~
+
+
 
 ## MERKLE3 Scheme Inclusion/Exclusion Rules
 
