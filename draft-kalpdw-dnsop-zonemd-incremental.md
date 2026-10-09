@@ -1,5 +1,6 @@
 %%%
-title = "The MERKLE3-Incremental Scheme for ZONEMD"
+title = "The MERKLE3 Incremental Scheme for ZONEMD"
+abbrev = "The MERKLE3 ZONEMD Scheme"
 docName = "@DOCNAME@"
 category = "std"
 ipr = "trust200902"
@@ -10,7 +11,7 @@ keyword = [""]
 
 [seriesInfo]
 name = "Internet-Draft"
-value = "draft-ietf-dnsop-zonemd-incremental"
+value = "draft-kalpdw-dnsop-zonemd-incremental"
 stream = "IETF"
 status = "standard"
 

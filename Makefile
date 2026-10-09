@@ -3,7 +3,7 @@
 # on fedora: sudo dnf install golang-github-mmarkdown-mmark
 
 VERSION = 00
-DOCNAME = draft-wessels-dnsop-zonemd-incremental
+DOCNAME = draft-kalpdw-dnsop-zonemd-incremental
 XML=Versions/$(DOCNAME)-$(VERSION).xml
 TXT=Versions/$(DOCNAME)-$(VERSION).txt
 HTML=Versions/$(DOCNAME)-$(VERSION).html
