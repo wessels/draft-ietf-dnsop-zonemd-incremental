@@ -356,18 +356,17 @@ The final MERKLE3 ZONEMD SHA384 digest for this zone is:
    collapsed into their parents. The leaves of the tree (representing individual
    RRsets) would be located at varying depths from the root. Such a binary
    tree would have a maximum height of 256, but due to the uniform distribution
-   of nodes by the hash function, the real height would be logarithmic to
-   the number of nodes. While this is complicated to implement, it would
-   scale dynamically for the size of the zone while offering logarithmic-time
-   operations.
+   of nodes by the hash function, the real height would be logarithmic to the
+   number of nodes. It would scale dynamically for the size of the zone while
+   offering logarithmic-time operations.
 
    In the static tree proposal, all leaf nodes would be located at exactly the
    same height, and all the nodes above them would exist unconditionally. RRsets
-   would be hashed under the leaf nodes. This is relatively simple to implement,
-   but its operations scale linearly if there are many more RRsets than nodes.
-   There were concerns that a single static tree scheme would not cater to the
-   performance needs of both medium-sized and large zones, that multiple schemes
-   of different configurations would be needed.
+   would be hashed under the leaf nodes. Its operations scale linearly if there
+   are many more RRsets than nodes. There were concerns that a single static
+   tree scheme would not cater to the performance needs of both medium-sized
+   and large zones, that multiple schemes of different configurations would
+   be needed.
 
    These proposals were experimentally implemented with various configurations.
    They were compared by measuring their runtime performance and memory usage in
@@ -405,12 +404,14 @@ The final MERKLE3 ZONEMD SHA384 digest for this zone is:
    ease the processing of updates: an addition or removal of an RR could be
    processed without knowledge of the RRset it is contained within. But it would
    require many more invocations of the hash function (one per RR instead of one
-   per RRset).
+   per RRset) and would significantly increase the size of the tree.
 
    Another proposal considered hashing whole Nodes (all the RRsets at a
    particular owner name). This would shrink the Merkle tree, but increase the
    effort to process an update (significantly more data would have to be hashed
-   to update a single node).
+   to update a single node). Notably, the zone apex, which often contains many
+   RRsets, is affected by every update; this proposal would greatly increase
+   the effort for it.
 
    The accepted proposal, where RRsets are hashed, strikes a balance between
    hashing too many times and hashing too much. The alternative proposals were
