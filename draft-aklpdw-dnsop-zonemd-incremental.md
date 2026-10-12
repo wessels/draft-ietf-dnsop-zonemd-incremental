@@ -11,7 +11,7 @@ keyword = [""]
 
 [seriesInfo]
 name = "Internet-Draft"
-value = "draft-aklpdw-dnsop-zonemd-incremental"
+value = "@DOCNAME@"
 stream = "IETF"
 status = "standard"
 
