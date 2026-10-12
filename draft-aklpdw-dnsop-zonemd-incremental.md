@@ -119,6 +119,8 @@ coding = "utf-8"
    Each RRset is assigned to a level-2 node in the tree, based on the first two bytes of its hash.
    The first byte selects a node in level 1 and the second selects a node in level 2.
 
+   Note: in the incredibly unlikely case that two RRsets have the same hash, they should not be deduplicated: both hashes should be inserted in the tree.
+
    Within each level-2 node, RRsets are sorted lexicographically by their hashes.
    These hashes are concatenated and hashed, using the same hash algorithm, to produce the hash of the level-2 node.
    Level-2 nodes that have no children are not hashed at all.
