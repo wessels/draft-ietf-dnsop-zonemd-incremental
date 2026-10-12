@@ -291,7 +291,7 @@ The final MERKLE3 ZONEMD SHA384 digest for this zone is:
    an in-memory Merkle tree data structure of DNS zone data.  This will
    generally be in addition to an implementation's primary data structure
    for referencing zone data.  As a sample data point, the .SE zone from
-   2026-06-30 with NN1 records and NN2 RRsets required an additional
+   2026-02-16 with 8 million records and 1.41 million RRsets required an additional
    285 MB of memory in the author's proof-of-concept implementation.
 
    Compared to the SIMPLE scheme ([@!RFC8976]), the time to compute
@@ -360,7 +360,14 @@ The final MERKLE3 ZONEMD SHA384 digest for this zone is:
    * 256-ary Static Tree with Depth 3
    * 256-ary Static Tree with Depth 4
 
-   TODO include the exact results here, and how?
+   The single-threaded comptuation times of building the whole tree (non-incremental
+   update) of 8-million RR `se.` zone were in seconds, respectively:
+
+   Binary radix: 9.11, 256-ary Radix: 7.98, 256-ary Static2: 11.43, Static3: 8.03 Static4: 11.11
+
+   And the memory consumptions of the persistent Merkle tree were in MiB, respectively:
+
+   Binary radix: 616, 256-ary Radix: 369, 256-ary Static2: 279, Static3: 285, Static4: 749
 
    The penultimate option proved versatile and almost best in each scenario.
    Even the proposal of defining more than one ZONEMD Scheme with different tree
