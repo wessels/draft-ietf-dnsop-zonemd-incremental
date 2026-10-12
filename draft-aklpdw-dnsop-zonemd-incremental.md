@@ -340,25 +340,43 @@ The final MERKLE3 ZONEMD SHA384 digest for this zone is:
    logarithmic time.
 
    A proposed alternative was to simply XOR the hashes of individual RRsets.
-   This would be much simpler to implement, wouldn't need any persistent
-   data structures, would be much faster to compute, and would even allow
-   validating an incremental change without accessing the whole zone. However,
-   such ZONEMD would not ensure cryptographic protection and could only serve
-   as a checksum against random errors.
+   This would be much simpler to implement, wouldn't need any persistent data
+   structures, would be much faster to compute, and would even allow validating
+   an incremental change without accessing the whole zone. Unfortunately, such
+   a scheme is not cryptographically secure; it could only serve as a checksum
+   against random errors.
 
 ## Shape of the Tree
 
-   Most of design decisions were around the depth and width (how many child nodes
-   a branch node can have) of the Merkle Tree and if it should be a Radix Tree
-   (collapsing branch nodes with single child). The following variants were
-   experimentally implemented and compared by measuring their time and memory
-   complexity in various scenarios (many tiny zones, one TLD-like large zone):
+   Several variations of the Merkle tree design were considered, focusing on
+   its height and branching factor (the number of children of a node). There
+   were two main proposals: a radix tree and a static tree.
 
-   * Binary Radix Tree
-   * 256-ary Radix Tree
-   * 256-ary Static Tree with Depth 2
-   * 256-ary Static Tree with Depth 3
-   * 256-ary Static Tree with Depth 4
+   In the radix tree proposal, inner nodes that have no siblings would be
+   collapsed into their parents. The leaves of the tree (representing individual
+   RRsets) would be located at varying depths from the root. Such a binary
+   tree would have a maximum height of 256, but due to the uniform distribution
+   of nodes by the hash function, the real height would be logarithmic to the
+   number of nodes. It would scale dynamically for the size of the zone while
+   offering logarithmic-time operations.
+
+   In the static tree proposal, all leaf nodes would be located at exactly the
+   same height, and all the nodes above them would exist unconditionally. RRsets
+   would be hashed under the leaf nodes. Its operations scale linearly if there
+   are many more RRsets than nodes. There were concerns that a single static
+   tree scheme would not cater to the performance needs of both medium-sized
+   and large zones, that multiple schemes of different configurations would
+   be needed.
+
+   These proposals were experimentally implemented with various configurations.
+   They were compared by measuring their runtime performance and memory usage in
+   various scenarios (many tiny zones and one TLD-like large zone):
+
+   * binary radix tree
+   * 256-ary radix tree
+   * 256-ary static tree, depth 2
+   * 256-ary static tree, depth 3
+   * 256-ary static tree, depth 4
 
    The single-threaded comptuation times of building the whole tree (non-incremental
    update) of 8-million RR `se.` zone were in seconds, respectively:
@@ -369,25 +387,35 @@ The final MERKLE3 ZONEMD SHA384 digest for this zone is:
 
    Binary radix: 616, 256-ary Radix: 369, 256-ary Static2: 279, Static3: 285, Static4: 749
 
-   The penultimate option proved versatile and almost best in each scenario.
-   Even the proposal of defining more than one ZONEMD Scheme with different tree
-   depths proved unnecessary.
+   The penultimate option (256-ary static tree, depth 3) proved versatile and
+   almost best in each scenario. It provides good speeds for medium and large
+   zones alike. It was not necessary to define multiple static tree schemes to
+   cover all needs.
 
-   Anyway, the effectivity for tiny zones is not too important since the users
-   can simply use the Simple Scheme for them.
+   Note that the needs for very small zones were not considered, as they are
+   adequately satisfied by the SIMPLE scheme.
 
-## Choice of Atomic Hashable
+## Granularity of hashing
 
-   Alternatively to hashing each RRset in the zone, it was proposed to either
-   separately hash each single Resource Record, or to hash whole Node (all RRsets
-   within the Domain Name) together. The former option would ease update processing,
-   since adding or removing a RR in an existing RRset would just lead to single update
-   in the tree, opposedly to reconstructing the two versions of the affected RRset and
-   hashing both; however, the resulting Merkle Tree would be much larger. The latter
-   option would lead to smaller Tree, but less effective by re-hashing the two
-   versions of the whole node, including the zone apex, which is updated each time
-   anyway. In short, using the RRset as the primary hashable object is a compromise,
-   a middle ground.
+   While the final design operates on units of RRsets, smaller and larger units
+   were considered.
+
+   One proposal considered hashing individual resource records (RRs). This would
+   ease the processing of updates: an addition or removal of an RR could be
+   processed without knowledge of the RRset it is contained within. But it would
+   require many more invocations of the hash function (one per RR instead of one
+   per RRset) and would significantly increase the size of the tree.
+
+   Another proposal considered hashing whole Nodes (all the RRsets at a
+   particular owner name). This would shrink the Merkle tree, but increase the
+   effort to process an update (significantly more data would have to be hashed
+   to update a single node). Notably, the zone apex, which often contains many
+   RRsets, is affected by every update; this proposal would greatly increase
+   the effort for it.
+
+   The accepted proposal, where RRsets are hashed, strikes a balance between
+   hashing too many times and hashing too much. The alternative proposals were
+   not implemented or experimentally evaluated.
 
 {backmatter}
 
