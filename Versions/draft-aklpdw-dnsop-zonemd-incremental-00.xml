@@ -1,0 +1,385 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- name="GENERATOR" content="github.com/mmarkdown/mmark Mmark Markdown Processor - mmark.miek.nl" -->
+<rfc version="3" ipr="trust200902" docName="draft-aklpdw-dnsop-zonemd-incremental-00" submissionType="IETF" category="std" xml:lang="en" xmlns:xi="http://www.w3.org/2001/XInclude" indexInclude="true">
+
+<front>
+<title abbrev="The MERKLE3 ZONEMD Scheme">The MERKLE3 Incremental Scheme for ZONEMD</title><seriesInfo value="draft-aklpdw-dnsop-zonemd-incremental-00" stream="IETF" status="standard" name="Internet-Draft"></seriesInfo>
+<author initials="D." surname="Wessels" fullname="Duane Wessels"><organization>Verisign</organization><address><postal><street></street>
+</postal><email>dwessels@verisign.com</email>
+</address></author><author initials="L." surname="Peltan" fullname="Libor Peltan"><organization>CZ.NIC</organization><address><postal><street></street>
+</postal><email>libor.peltan@nic.cz</email>
+</address></author><author initials="A." surname="Khanna" fullname="Arya Khanna"><organization>NLnet Labs</organization><address><postal><street></street>
+</postal><email>arya@nlnetlabs.nl</email>
+</address></author><date/>
+<area>Operations</area>
+<workgroup>DNSOP</workgroup>
+
+<abstract>
+<t>The ZONEMD Resource Record affirms the integrity of whole DNS zones and helps verify their authenticity.
+   It embeds a cryptographic hash of the zone data, collated in a configurable way.
+   It is used as a checksum for zone transfers between name servers.</t>
+<t><xref target="RFC8976"></xref> defined a single ZONEMD collation scheme, SIMPLE.
+   It is sufficient for small and infrequently updated zones.
+   This document introduces the MERKLE3 scheme, targeting large, dynamic zones.
+   It uses a Merkle tree to enable parallelism and incremental computation.</t>
+</abstract>
+
+</front>
+
+<middle>
+
+<section anchor="introduction"><name>Introduction</name>
+<t>A ZONEMD record is generated with a choice of hash function and collation scheme.
+   For the hash function, choices of SHA-384 and SHA-512 have been defined.
+   The collation scheme decides how the hash function is applied to the zone data.
+   The SIMPLE scheme hashes the concatenation of the records in the zone, in canonical order.
+   With its definition, <xref target="RFC8976"></xref> notes:</t>
+<blockquote><t>For the SIMPLE scheme, the digest is calculated over the zone as a whole.
+This means that a change to a single RR in the zone requires iterating over all RRs in the zone to recalculate the digest.
+SIMPLE is a good choice for zones that are small and/or stable, but it is probably not good for zones that are large and/or dynamic.</t>
+</blockquote><t>The SIMPLE scheme does not support parallelism or efficient incremental computation.
+   Every change to the zone requires re-hashing all of the zone contents, serially.
+   For DNSSEC signers, computing ZONEMD with the SIMPLE scheme is the only step that cannot be parallelized.</t>
+<t>This document describes a new collation scheme targeting large, dynamic zones.
+   It organizes the records in the zone in a Merkle tree structure.
+   Records have fixed positions in the tree, so they are unaffected by additions and removals.
+   Changes to the zone only require re-hashing the affected nodes of the tree and their parents.</t>
+<t>Using this scheme, ZONEMD checksums can be computed in a highly-parallel fashion.
+   Given the prevalence of many-core CPUs, an order-of-magnitude speedup is achievable.
+   Implementations can persist the tree structure for incremental computation, with even better speedups.</t>
+
+<section anchor="reserved-words"><name>Reserved Words</name>
+<t>The key words &quot;MUST&quot;, &quot;MUST NOT&quot;, &quot;REQUIRED&quot;, &quot;SHALL&quot;, &quot;SHALL NOT&quot;,
+   &quot;SHOULD&quot;, &quot;SHOULD NOT&quot;, &quot;RECOMMENDED&quot;, &quot;NOT RECOMMENDED&quot;, &quot;MAY&quot;,
+   and &quot;OPTIONAL&quot; in this document are to be interpreted as described
+   in BCP 14 <xref target="RFC2119"></xref> <xref target="RFC8174"></xref> when, and only when, they
+   appear in all capitals, as shown here.</t>
+</section>
+</section>
+
+<section anchor="the-merkle3-scheme"><name>The MERKLE3 Scheme</name>
+
+<section anchor="computation"><name>Computation</name>
+<t>The MERKLE3 data structure is a trie.
+   It consists of four levels:
+   level 0 (the root node),
+   level 1 (up to 256 nodes),
+   level 2 (up to 65,536 nodes),
+   and level 3 (individual RRsets).
+   The first three levels (0, 1, and 2) are <em>inner nodes</em>.
+   Nodes in levels 0 and 1 have up to 256 children each.
+   Children are identified by an unsigned 8-bit index from 0 to 255.</t>
+<t>Every RRset is individually hashed, using the selected ZONEMD hash algorithm.
+   The records in the RRset are sorted in DNSSEC canonical order, serialized in the DNSSEC canonical form, concatenated together, and hashed once.
+   Each RRset is assigned to a level-2 node in the tree, based on the first two bytes of its hash.
+   The first byte selects a node in level 1 and the second selects a node in level 2.</t>
+<t>Note: in the incredibly unlikely case that two RRsets have the same hash, they should not be deduplicated: both hashes should be inserted in the tree.</t>
+<t>Within each level-2 node, RRsets are sorted lexicographically by their hashes.
+   These hashes are concatenated and hashed, using the same hash algorithm, to produce the hash of the level-2 node.
+   Level-2 nodes that have no children are not hashed at all.</t>
+<t>Then, the hashes of the level-1 nodes are computed.
+   The children of each level-1 node (those that exist) are ordered by index.
+   The hashes are concatenated and hashed to produce the hash of the level-1 node.
+   Again, level-1 nodes that have no children are not hashed at all.</t>
+<t>The root node is hashed from the level-1 nodes in the same way.
+   The hash of the root node is the final digest that is stored in the ZONEMD record.</t>
+</section>
+
+<section anchor="worked-example"><name>Worked example</name>
+<t>Consider the following zone:</t>
+
+<artwork><![CDATA[example.com.  300  IN  SOA   mname.example.com. rname.example.com. (
+                             1 3600 7200 43200 300 )
+example.com.   60  I   NS    ns1.foo.example.
+example.com.  300  IN  AAAA  2606:4700:10::ac42:93f3
+example.com.  300  IN  AAAA  2606:4700:10::6814:179a
+]]></artwork>
+<t>The NS RRset is serialized as the following bytes, in hexadecimal:</t>
+
+<artwork><![CDATA[07 6578616D706C65 03 636F6D 00 0002 0001 0000003C 0011 03 6E7331 03
+666F6F 07 6578616D706C65 00
+]]></artwork>
+<t>The NS RRset has a SHA384 hash value of:</t>
+
+<artwork><![CDATA[089AAD19F7AE6D16 D4BBA103E784AA8F 0E2818E56921C439 5F59EC80A3C4C856
+10D50D7D5B3A1DD7 8C51C0ED5A9F45CC
+]]></artwork>
+<t>The first two bytes are relevant. The RRset is positioned under the root
+   node, under its (level-1) child node at index 8 (0x08), under its (level-2)
+   child node at index 154 (0x9A).</t>
+<t>The SOA RRset is serialized as the following bytes, in hexadecimal:</t>
+
+<artwork><![CDATA[07 6578616D706C65 03 636F6D 00 0006 0001 0000012C 003A 05 6D6E616D65
+07 6578616D706C65 03 636F6D 00 05 726E616D65 07 6578616D706C65 03
+636F6D 00 00000001 00000E1 000001C2 00000A8C 00000012C
+]]></artwork>
+<t>The SOA RRset has a SHA384 hash value of:</t>
+
+<artwork><![CDATA[B5EE62F73B9094B4 B0E1FCF899FADBD5 5972359A355C82C9 24CEA28A1B73959E
+CA9D6D00670FF32A 873B8AD03721A181
+]]></artwork>
+<t>This RRset is positioned under the root
+   node, under its (level-1) child node at index 181 (0xB5), under its (level-2)
+   child node at index 238 (0xEE).</t>
+<t>The two records in the AAAA RRset are serialized as the following bytes, in hexadecimal:</t>
+
+<artwork><![CDATA[07 6578616D706C65 03 636F6D 00 001C 0001 0000012C 0010 2606 4700 0010
+0000 0000 0000 6814 179A
+07 6578616D706C65 03 636F6D 00 001C 0001 0000012C 0010 2606 4700 0010
+0000 0000 0000 AC42 93F3
+]]></artwork>
+<t>The AAAA RRset has a SHA-384 hash value of:</t>
+
+<artwork><![CDATA[9CDD7D2DB2C820F5 4DF2F64690A68665 D3459BEACC09F216 57D01848B2D195A9
+5C0E24C3E7458B95 B03EFBDC8B252DEF
+]]></artwork>
+<t>This RRset is positioned under the root
+   node, under its (level-1) child node at index 156 (0x9C), under its (level-2)
+   child node at index 221 (0xDD).</t>
+<t>The final MERKLE3 ZONEMD SHA384 digest for this zone is:</t>
+
+<artwork><![CDATA[5F0AD47C76A59B6E 287E221C296EA5C8 99AE5D473E4AE0E3 FF0FCEDF3E2345BE
+7FC9F27CA1307775 4C98BB53B6288B64
+]]></artwork>
+</section>
+
+<section anchor="merkle3-scheme-inclusion-exclusion-rules"><name>MERKLE3 Scheme Inclusion/Exclusion Rules</name>
+<t>The inclusion and exclusion rules for the MERKLE3 scheme
+   are identical to those for the SIMPLE scheme, described in
+   Section 3.3.1.1 of <xref target="RFC8976"></xref>.</t>
+</section>
+
+<section anchor="merkle3-scheme-digest-calculation"><name>MERKLE3 Scheme Digest Calculation</name>
+<t>A zone digest using the MERKLE3 scheme is calculated
+   over the Merkle tree in a bottom-up fashion.
+   Each branch node in the
+   tree has its own hash value, which is calculated from the elements
+   directly beneath it.</t>
+<t>A leaf node's hash value is directly the RRset hash value and corresponds
+   to the leaf position in the tree.</t>
+<t>A branch node (including root) hash value is calculated by concatenating
+   all of its child node hash values, sorted numerically, as input to the zone
+   digest hash function. Note that for branch nodes, their assigned hash value
+   may (in fact, usually will) not correspond to its position in the tree
+   (and the common prefix of leaves' hash values).</t>
+<t>The root node hash value becomes the zone digest, placed in the
+   RDATA of the apex ZONEMD RR.</t>
+<t>Upon a change to a leaf node, the inner node hash values
+   are recalculated from the bottom up, until reaching the root node.</t>
+</section>
+
+<section anchor="adding-an-rrset"><name>Adding an RRset</name>
+<t>To add an RRset to the MERKLE3 data structure (subject to
+   inclusion/exclusion rules), its location is determined as described
+   above.
+   A new leaf node is added with the RRset's hash, and a path of branch
+   nodes up to the tree as well if they don't exist yet.</t>
+</section>
+
+<section anchor="removing-an-rrset"><name>Removing an RRset</name>
+<t>To remove an RRset from the MERKLE3 data structure, its
+   location is determined as described above.  If the RRset was previously
+   placed in the data structure, its full hash value should have
+   the corresponding leaf node, from which it is then removed.
+   Any branch nodes becoming empty are removed as well.</t>
+</section>
+
+<section anchor="updating-an-rrset"><name>Updating an RRset</name>
+<t>Updating an RRset in the MERKLE3 data structure is equivalent
+   to removing the former RRset and then adding the updated RRset.</t>
+</section>
+
+<section anchor="recomputing-after-changes"><name>Recomputing After Changes</name>
+<t>To recompute the MERKLE3 ZONEMD digest it is only necessary
+   to update all inner hash values along paths from changed leaf nodes back
+   to the root node.</t>
+</section>
+</section>
+
+<section anchor="iana-considerations"><name>IANA Considerations</name>
+<t>IANA is requested to update
+   the &quot;ZONEMD Schemes&quot; registry
+   on the &quot;Domain Name System (DNS) Parameters&quot; web page
+   as follows:</t>
+<t>Value: TBD</t>
+<t>Description: Merkle Tree Incremental ZONEMD collation</t>
+<t>Mnemonic: MERKLE3</t>
+<t>Reference: [this document]</t>
+</section>
+
+<section anchor="security-considerations"><name>Security Considerations</name>
+<t>All security considerations from <xref target="RFC8976"></xref> apply to this
+   specification and the MERKLE3 scheme.</t>
+</section>
+
+<section anchor="performance-considerations"><name>Performance Considerations</name>
+<t>The MERKLE3 scheme requires an implementation to maintain
+   an in-memory Merkle tree data structure of DNS zone data.  This will
+   generally be in addition to an implementation's primary data structure
+   for referencing zone data.  As a sample data point, the .SE zone from
+   2026-02-16 with 8 million records and 1.41 million RRsets required an additional
+   285 MB of memory in the author's proof-of-concept implementation.</t>
+<t>Compared to the SIMPLE scheme (<xref target="RFC8976"></xref>), the time to compute
+   an initial MERKLE3 digest can be larger in a single-threaded application, due to the need
+   to populate the Merkle tree data structure.
+   However, when parallelization and multi-threading are leveraged,
+   the MERKLE3 scheme can perform significantly better.</t>
+<t>However, the time to compute updates to the MERKLE3 digest
+   are essentially zero on modern computer systems, whereas the SIMPLE
+   scheme provides no reduction in time for computing updates.</t>
+<t>The above considerations apply only to well-balanced Merkle trees.
+   An attacker with the ability to insert RRsets into a zone may be able to intentionally unbalance the MERKLE3 data structure, similar to the Nurgle attack <xref target="Nurgle"></xref>.
+   The performance of the MERKLE3 scheme in such an attack may be degraded at a rate proportional to the fraction of RRsets under the attacker's control.
+   In other words, an attacker would need to control a significant fraction of RRsets in a large zone in order to affect performance.</t>
+</section>
+
+<section anchor="privacy-considerations"><name>Privacy Considerations</name>
+<t>This specification has no impact on user privacy.</t>
+</section>
+
+<section anchor="acknowledgements"><name>Acknowledgements</name>
+<t>The authors wish to thank
+   members of the DNSOP working group
+   for their input.</t>
+</section>
+
+<section anchor="changes"><name>Changes</name>
+<t>RFC Editor: Please remove this section before publication.</t>
+<t>This section lists substantial changes to the document as it is being worked on.</t>
+
+<ul spacing="compact">
+<li><t>From -00 to -01</t>
+
+<ul spacing="compact">
+<li>this</li>
+<li>that</li>
+<li>the other</li>
+</ul></li>
+</ul>
+</section>
+
+<section anchor="appendix-design-decisions"><name>Appendix: Design Decisions</name>
+
+<section anchor="use-of-merkle-tree"><name>Use of Merkle Tree</name>
+<t>Merkle Tree ensures strong cryptographic properties of the resulting hash
+   while enabling tiny updates to the large structure to be processed in
+   logarithmic time.</t>
+<t>A proposed alternative was to simply XOR the hashes of individual RRsets.
+   This would be much simpler to implement, wouldn't need any persistent data
+   structures, would be much faster to compute, and would even allow validating
+   an incremental change without accessing the whole zone. Unfortunately, such
+   a scheme is not cryptographically secure; it could only serve as a checksum
+   against random errors.</t>
+</section>
+
+<section anchor="shape-of-the-tree"><name>Shape of the Tree</name>
+<t>Several variations of the Merkle tree design were considered, focusing on
+   its height and branching factor (the number of children of a node). There
+   were two main proposals: a radix tree and a static tree.</t>
+<t>In the radix tree proposal, inner nodes that have no siblings would be
+   collapsed into their parents. The leaves of the tree (representing individual
+   RRsets) would be located at varying depths from the root. Such a binary
+   tree would have a maximum height of 256, but due to the uniform distribution
+   of nodes by the hash function, the real height would be logarithmic to the
+   number of nodes. It would scale dynamically for the size of the zone while
+   offering logarithmic-time operations.</t>
+<t>In the static tree proposal, all leaf nodes would be located at exactly the
+   same height, and all the nodes above them would exist unconditionally. RRsets
+   would be hashed under the leaf nodes. Its operations scale linearly if there
+   are many more RRsets than nodes. There were concerns that a single static
+   tree scheme would not cater to the performance needs of both medium-sized
+   and large zones, that multiple schemes of different configurations would
+   be needed.</t>
+<t>These proposals were experimentally implemented with various configurations.
+   They were compared by measuring their runtime performance and memory usage in
+   various scenarios (many tiny zones and one TLD-like large zone):</t>
+
+<ul spacing="compact">
+<li>binary radix tree</li>
+<li>256-ary radix tree</li>
+<li>256-ary static tree, depth 2</li>
+<li>256-ary static tree, depth 3</li>
+<li>256-ary static tree, depth 4</li>
+</ul>
+<t>The single-threaded comptuation times of building the whole tree (non-incremental
+   update) of 8-million RR <tt>se.</tt> zone were in seconds, respectively:</t>
+<t>Binary radix: 9.11, 256-ary Radix: 7.98, 256-ary Static2: 11.43, Static3: 8.03 Static4: 11.11</t>
+<t>And the memory consumptions of the persistent Merkle tree were in MiB, respectively:</t>
+<t>Binary radix: 616, 256-ary Radix: 369, 256-ary Static2: 279, Static3: 285, Static4: 749</t>
+<t>The penultimate option (256-ary static tree, depth 3) proved versatile and
+   almost best in each scenario. It provides good speeds for medium and large
+   zones alike. It was not necessary to define multiple static tree schemes to
+   cover all needs.</t>
+<t>Note that the needs for very small zones were not considered, as they are
+   adequately satisfied by the SIMPLE scheme.</t>
+</section>
+
+<section anchor="granularity-of-hashing"><name>Granularity of hashing</name>
+<t>While the final design operates on units of RRsets, smaller and larger units
+   were considered.</t>
+<t>One proposal considered hashing individual resource records (RRs). This would
+   ease the processing of updates: an addition or removal of an RR could be
+   processed without knowledge of the RRset it is contained within. But it would
+   require many more invocations of the hash function (one per RR instead of one
+   per RRset) and would significantly increase the size of the tree.</t>
+<t>Another proposal considered hashing whole Nodes (all the RRsets at a
+   particular owner name). This would shrink the Merkle tree, but increase the
+   effort to process an update (significantly more data would have to be hashed
+   to update a single node). Notably, the zone apex, which often contains many
+   RRsets, is affected by every update; this proposal would greatly increase
+   the effort for it.</t>
+<t>The accepted proposal, where RRsets are hashed, strikes a balance between
+   hashing too many times and hashing too much. The alternative proposals were
+   not implemented or experimentally evaluated.</t>
+</section>
+</section>
+
+</middle>
+
+<back>
+<references><name>References</name>
+<references><name>Normative References</name>
+<xi:include href="https://bib.ietf.org/public/rfc/bibxml/reference.RFC.2119.xml"/>
+<xi:include href="https://bib.ietf.org/public/rfc/bibxml/reference.RFC.8174.xml"/>
+<xi:include href="https://bib.ietf.org/public/rfc/bibxml/reference.RFC.8976.xml"/>
+</references>
+<references><name>Informative References</name>
+<reference anchor="Nurgle" target="http://dx.doi.org/10.1109/SP54263.2024.00125">
+  <front>
+    <title>Nurgle: Exacerbating Resource Consumption in Blockchain State Storage via MPT Manipulation</title>
+    <author fullname="Zheyuan He">
+      <organization></organization>
+    </author>
+    <author fullname="Zihao Li">
+      <organization></organization>
+    </author>
+    <author fullname="Ao Qiao">
+      <organization></organization>
+    </author>
+    <author fullname="Xiapu Luo">
+      <organization></organization>
+    </author>
+    <author fullname="Xiaosong Zhang,">
+      <organization></organization>
+    </author>
+    <author fullname="Ting Chen">
+      <organization></organization>
+    </author>
+    <author fullname="Shuwei Song">
+      <organization></organization>
+    </author>
+    <author fullname="Dijun Liu">
+      <organization></organization>
+    </author>
+    <author fullname="Weina Miu">
+      <organization></organization>
+    </author>
+    <date year="2024" month="May"></date>
+  </front>
+</reference>
+</references>
+</references>
+
+</back>
+
+</rfc>

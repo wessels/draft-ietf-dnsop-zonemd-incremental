@@ -1,0 +1,616 @@
+
+
+
+
+DNSOP                                                         D. Wessels
+Internet-Draft                                                  Verisign
+Intended status: Standards Track                               L. Peltan
+Expires: 15 April 2027                                            CZ.NIC
+                                                               A. Khanna
+                                                              NLnet Labs
+                                                         12 October 2026
+
+
+               The MERKLE3 Incremental Scheme for ZONEMD
+                draft-aklpdw-dnsop-zonemd-incremental-00
+
+Abstract
+
+   The ZONEMD Resource Record affirms the integrity of whole DNS zones
+   and helps verify their authenticity.  It embeds a cryptographic hash
+   of the zone data, collated in a configurable way.  It is used as a
+   checksum for zone transfers between name servers.
+
+   [RFC8976] defined a single ZONEMD collation scheme, SIMPLE.  It is
+   sufficient for small and infrequently updated zones.  This document
+   introduces the MERKLE3 scheme, targeting large, dynamic zones.  It
+   uses a Merkle tree to enable parallelism and incremental computation.
+
+Status of This Memo
+
+   This Internet-Draft is submitted in full conformance with the
+   provisions of BCP 78 and BCP 79.
+
+   Internet-Drafts are working documents of the Internet Engineering
+   Task Force (IETF).  Note that other groups may also distribute
+   working documents as Internet-Drafts.  The list of current Internet-
+   Drafts is at https://datatracker.ietf.org/drafts/current/.
+
+   Internet-Drafts are draft documents valid for a maximum of six months
+   and may be updated, replaced, or obsoleted by other documents at any
+   time.  It is inappropriate to use Internet-Drafts as reference
+   material or to cite them other than as "work in progress."
+
+   This Internet-Draft will expire on 15 April 2027.
+
+Copyright Notice
+
+   Copyright (c) 2026 IETF Trust and the persons identified as the
+   document authors.  All rights reserved.
+
+
+
+
+
+
+Wessels, et al.           Expires 15 April 2027                 [Page 1]
+
+Internet-Draft          The MERKLE3 ZONEMD Scheme           October 2026
+
+
+   This document is subject to BCP 78 and the IETF Trust's Legal
+   Provisions Relating to IETF Documents (https://trustee.ietf.org/
+   license-info) in effect on the date of publication of this document.
+   Please review these documents carefully, as they describe your rights
+   and restrictions with respect to this document.  Code Components
+   extracted from this document must include Revised BSD License text as
+   described in Section 4.e of the Trust Legal Provisions and are
+   provided without warranty as described in the Revised BSD License.
+
+Table of Contents
+
+   1.  Introduction  . . . . . . . . . . . . . . . . . . . . . . . .   2
+     1.1.  Reserved Words  . . . . . . . . . . . . . . . . . . . . .   3
+   2.  The MERKLE3 Scheme  . . . . . . . . . . . . . . . . . . . . .   3
+     2.1.  Computation . . . . . . . . . . . . . . . . . . . . . . .   3
+     2.2.  Worked example  . . . . . . . . . . . . . . . . . . . . .   4
+     2.3.  MERKLE3 Scheme Inclusion/Exclusion Rules  . . . . . . . .   5
+     2.4.  MERKLE3 Scheme Digest Calculation . . . . . . . . . . . .   5
+     2.5.  Adding an RRset . . . . . . . . . . . . . . . . . . . . .   6
+     2.6.  Removing an RRset . . . . . . . . . . . . . . . . . . . .   6
+     2.7.  Updating an RRset . . . . . . . . . . . . . . . . . . . .   6
+     2.8.  Recomputing After Changes . . . . . . . . . . . . . . . .   6
+   3.  IANA Considerations . . . . . . . . . . . . . . . . . . . . .   6
+   4.  Security Considerations . . . . . . . . . . . . . . . . . . .   7
+   5.  Performance Considerations  . . . . . . . . . . . . . . . . .   7
+   6.  Privacy Considerations  . . . . . . . . . . . . . . . . . . .   7
+   7.  Acknowledgements  . . . . . . . . . . . . . . . . . . . . . .   7
+   8.  Changes . . . . . . . . . . . . . . . . . . . . . . . . . . .   8
+   9.  Appendix: Design Decisions  . . . . . . . . . . . . . . . . .   8
+     9.1.  Use of Merkle Tree  . . . . . . . . . . . . . . . . . . .   8
+     9.2.  Shape of the Tree . . . . . . . . . . . . . . . . . . . .   8
+     9.3.  Granularity of hashing  . . . . . . . . . . . . . . . . .   9
+   10. References  . . . . . . . . . . . . . . . . . . . . . . . . .  10
+     10.1.  Normative References . . . . . . . . . . . . . . . . . .  10
+     10.2.  Informative References . . . . . . . . . . . . . . . . .  10
+   Authors' Addresses  . . . . . . . . . . . . . . . . . . . . . . .  10
+
+1.  Introduction
+
+   A ZONEMD record is generated with a choice of hash function and
+   collation scheme.  For the hash function, choices of SHA-384 and
+   SHA-512 have been defined.  The collation scheme decides how the hash
+   function is applied to the zone data.  The SIMPLE scheme hashes the
+   concatenation of the records in the zone, in canonical order.  With
+   its definition, [RFC8976] notes:
+
+
+
+
+
+
+Wessels, et al.           Expires 15 April 2027                 [Page 2]
+
+Internet-Draft          The MERKLE3 ZONEMD Scheme           October 2026
+
+
+   |  For the SIMPLE scheme, the digest is calculated over the zone as a
+   |  whole.  This means that a change to a single RR in the zone
+   |  requires iterating over all RRs in the zone to recalculate the
+   |  digest.  SIMPLE is a good choice for zones that are small and/or
+   |  stable, but it is probably not good for zones that are large and/
+   |  or dynamic.
+
+   The SIMPLE scheme does not support parallelism or efficient
+   incremental computation.  Every change to the zone requires re-
+   hashing all of the zone contents, serially.  For DNSSEC signers,
+   computing ZONEMD with the SIMPLE scheme is the only step that cannot
+   be parallelized.
+
+   This document describes a new collation scheme targeting large,
+   dynamic zones.  It organizes the records in the zone in a Merkle tree
+   structure.  Records have fixed positions in the tree, so they are
+   unaffected by additions and removals.  Changes to the zone only
+   require re-hashing the affected nodes of the tree and their parents.
+
+   Using this scheme, ZONEMD checksums can be computed in a highly-
+   parallel fashion.  Given the prevalence of many-core CPUs, an order-
+   of-magnitude speedup is achievable.  Implementations can persist the
+   tree structure for incremental computation, with even better
+   speedups.
+
+1.1.  Reserved Words
+
+   The key words "MUST", "MUST NOT", "REQUIRED", "SHALL", "SHALL NOT",
+   "SHOULD", "SHOULD NOT", "RECOMMENDED", "NOT RECOMMENDED", "MAY", and
+   "OPTIONAL" in this document are to be interpreted as described in BCP
+   14 [RFC2119] [RFC8174] when, and only when, they appear in all
+   capitals, as shown here.
+
+2.  The MERKLE3 Scheme
+
+2.1.  Computation
+
+   The MERKLE3 data structure is a trie.  It consists of four levels:
+   level 0 (the root node), level 1 (up to 256 nodes), level 2 (up to
+   65,536 nodes), and level 3 (individual RRsets).  The first three
+   levels (0, 1, and 2) are _inner nodes_.  Nodes in levels 0 and 1 have
+   up to 256 children each.  Children are identified by an unsigned
+   8-bit index from 0 to 255.
+
+   Every RRset is individually hashed, using the selected ZONEMD hash
+   algorithm.  The records in the RRset are sorted in DNSSEC canonical
+   order, serialized in the DNSSEC canonical form, concatenated
+   together, and hashed once.  Each RRset is assigned to a level-2 node
+
+
+
+Wessels, et al.           Expires 15 April 2027                 [Page 3]
+
+Internet-Draft          The MERKLE3 ZONEMD Scheme           October 2026
+
+
+   in the tree, based on the first two bytes of its hash.  The first
+   byte selects a node in level 1 and the second selects a node in level
+   2.
+
+   Note: in the incredibly unlikely case that two RRsets have the same
+   hash, they should not be deduplicated: both hashes should be inserted
+   in the tree.
+
+   Within each level-2 node, RRsets are sorted lexicographically by
+   their hashes.  These hashes are concatenated and hashed, using the
+   same hash algorithm, to produce the hash of the level-2 node.
+   Level-2 nodes that have no children are not hashed at all.
+
+   Then, the hashes of the level-1 nodes are computed.  The children of
+   each level-1 node (those that exist) are ordered by index.  The
+   hashes are concatenated and hashed to produce the hash of the level-1
+   node.  Again, level-1 nodes that have no children are not hashed at
+   all.
+
+   The root node is hashed from the level-1 nodes in the same way.  The
+   hash of the root node is the final digest that is stored in the
+   ZONEMD record.
+
+2.2.  Worked example
+
+   Consider the following zone:
+
+   example.com.  300  IN  SOA   mname.example.com. rname.example.com. (
+                                1 3600 7200 43200 300 )
+   example.com.   60  I   NS    ns1.foo.example.
+   example.com.  300  IN  AAAA  2606:4700:10::ac42:93f3
+   example.com.  300  IN  AAAA  2606:4700:10::6814:179a
+
+   The NS RRset is serialized as the following bytes, in hexadecimal:
+
+   07 6578616D706C65 03 636F6D 00 0002 0001 0000003C 0011 03 6E7331 03
+   666F6F 07 6578616D706C65 00
+
+   The NS RRset has a SHA384 hash value of:
+
+   089AAD19F7AE6D16 D4BBA103E784AA8F 0E2818E56921C439 5F59EC80A3C4C856
+   10D50D7D5B3A1DD7 8C51C0ED5A9F45CC
+
+   The first two bytes are relevant.  The RRset is positioned under the
+   root node, under its (level-1) child node at index 8 (0x08), under
+   its (level-2) child node at index 154 (0x9A).
+
+   The SOA RRset is serialized as the following bytes, in hexadecimal:
+
+
+
+Wessels, et al.           Expires 15 April 2027                 [Page 4]
+
+Internet-Draft          The MERKLE3 ZONEMD Scheme           October 2026
+
+
+   07 6578616D706C65 03 636F6D 00 0006 0001 0000012C 003A 05 6D6E616D65
+   07 6578616D706C65 03 636F6D 00 05 726E616D65 07 6578616D706C65 03
+   636F6D 00 00000001 00000E1 000001C2 00000A8C 00000012C
+
+   The SOA RRset has a SHA384 hash value of:
+
+   B5EE62F73B9094B4 B0E1FCF899FADBD5 5972359A355C82C9 24CEA28A1B73959E
+   CA9D6D00670FF32A 873B8AD03721A181
+
+   This RRset is positioned under the root node, under its (level-1)
+   child node at index 181 (0xB5), under its (level-2) child node at
+   index 238 (0xEE).
+
+   The two records in the AAAA RRset are serialized as the following
+   bytes, in hexadecimal:
+
+   07 6578616D706C65 03 636F6D 00 001C 0001 0000012C 0010 2606 4700 0010
+   0000 0000 0000 6814 179A
+   07 6578616D706C65 03 636F6D 00 001C 0001 0000012C 0010 2606 4700 0010
+   0000 0000 0000 AC42 93F3
+
+   The AAAA RRset has a SHA-384 hash value of:
+
+   9CDD7D2DB2C820F5 4DF2F64690A68665 D3459BEACC09F216 57D01848B2D195A9
+   5C0E24C3E7458B95 B03EFBDC8B252DEF
+
+   This RRset is positioned under the root node, under its (level-1)
+   child node at index 156 (0x9C), under its (level-2) child node at
+   index 221 (0xDD).
+
+   The final MERKLE3 ZONEMD SHA384 digest for this zone is:
+
+   5F0AD47C76A59B6E 287E221C296EA5C8 99AE5D473E4AE0E3 FF0FCEDF3E2345BE
+   7FC9F27CA1307775 4C98BB53B6288B64
+
+2.3.  MERKLE3 Scheme Inclusion/Exclusion Rules
+
+   The inclusion and exclusion rules for the MERKLE3 scheme are
+   identical to those for the SIMPLE scheme, described in
+   Section 3.3.1.1 of [RFC8976].
+
+2.4.  MERKLE3 Scheme Digest Calculation
+
+   A zone digest using the MERKLE3 scheme is calculated over the Merkle
+   tree in a bottom-up fashion.  Each branch node in the tree has its
+   own hash value, which is calculated from the elements directly
+   beneath it.
+
+
+
+
+Wessels, et al.           Expires 15 April 2027                 [Page 5]
+
+Internet-Draft          The MERKLE3 ZONEMD Scheme           October 2026
+
+
+   A leaf node's hash value is directly the RRset hash value and
+   corresponds to the leaf position in the tree.
+
+   A branch node (including root) hash value is calculated by
+   concatenating all of its child node hash values, sorted numerically,
+   as input to the zone digest hash function.  Note that for branch
+   nodes, their assigned hash value may (in fact, usually will) not
+   correspond to its position in the tree (and the common prefix of
+   leaves' hash values).
+
+   The root node hash value becomes the zone digest, placed in the RDATA
+   of the apex ZONEMD RR.
+
+   Upon a change to a leaf node, the inner node hash values are
+   recalculated from the bottom up, until reaching the root node.
+
+2.5.  Adding an RRset
+
+   To add an RRset to the MERKLE3 data structure (subject to inclusion/
+   exclusion rules), its location is determined as described above.  A
+   new leaf node is added with the RRset's hash, and a path of branch
+   nodes up to the tree as well if they don't exist yet.
+
+2.6.  Removing an RRset
+
+   To remove an RRset from the MERKLE3 data structure, its location is
+   determined as described above.  If the RRset was previously placed in
+   the data structure, its full hash value should have the corresponding
+   leaf node, from which it is then removed.  Any branch nodes becoming
+   empty are removed as well.
+
+2.7.  Updating an RRset
+
+   Updating an RRset in the MERKLE3 data structure is equivalent to
+   removing the former RRset and then adding the updated RRset.
+
+2.8.  Recomputing After Changes
+
+   To recompute the MERKLE3 ZONEMD digest it is only necessary to update
+   all inner hash values along paths from changed leaf nodes back to the
+   root node.
+
+3.  IANA Considerations
+
+   IANA is requested to update the "ZONEMD Schemes" registry on the
+   "Domain Name System (DNS) Parameters" web page as follows:
+
+   Value: TBD
+
+
+
+Wessels, et al.           Expires 15 April 2027                 [Page 6]
+
+Internet-Draft          The MERKLE3 ZONEMD Scheme           October 2026
+
+
+   Description: Merkle Tree Incremental ZONEMD collation
+
+   Mnemonic: MERKLE3
+
+   Reference: [this document]
+
+4.  Security Considerations
+
+   All security considerations from [RFC8976] apply to this
+   specification and the MERKLE3 scheme.
+
+5.  Performance Considerations
+
+   The MERKLE3 scheme requires an implementation to maintain an in-
+   memory Merkle tree data structure of DNS zone data.  This will
+   generally be in addition to an implementation's primary data
+   structure for referencing zone data.  As a sample data point, the .SE
+   zone from 2026-02-16 with 8 million records and 1.41 million RRsets
+   required an additional 285 MB of memory in the author's proof-of-
+   concept implementation.
+
+   Compared to the SIMPLE scheme ([RFC8976]), the time to compute an
+   initial MERKLE3 digest can be larger in a single-threaded
+   application, due to the need to populate the Merkle tree data
+   structure.  However, when parallelization and multi-threading are
+   leveraged, the MERKLE3 scheme can perform significantly better.
+
+   However, the time to compute updates to the MERKLE3 digest are
+   essentially zero on modern computer systems, whereas the SIMPLE
+   scheme provides no reduction in time for computing updates.
+
+   The above considerations apply only to well-balanced Merkle trees.
+   An attacker with the ability to insert RRsets into a zone may be able
+   to intentionally unbalance the MERKLE3 data structure, similar to the
+   Nurgle attack [Nurgle].  The performance of the MERKLE3 scheme in
+   such an attack may be degraded at a rate proportional to the fraction
+   of RRsets under the attacker's control.  In other words, an attacker
+   would need to control a significant fraction of RRsets in a large
+   zone in order to affect performance.
+
+6.  Privacy Considerations
+
+   This specification has no impact on user privacy.
+
+7.  Acknowledgements
+
+   The authors wish to thank members of the DNSOP working group for
+   their input.
+
+
+
+Wessels, et al.           Expires 15 April 2027                 [Page 7]
+
+Internet-Draft          The MERKLE3 ZONEMD Scheme           October 2026
+
+
+8.  Changes
+
+   RFC Editor: Please remove this section before publication.
+
+   This section lists substantial changes to the document as it is being
+   worked on.
+
+   *  From -00 to -01
+      -  this
+      -  that
+      -  the other
+
+9.  Appendix: Design Decisions
+
+9.1.  Use of Merkle Tree
+
+   Merkle Tree ensures strong cryptographic properties of the resulting
+   hash while enabling tiny updates to the large structure to be
+   processed in logarithmic time.
+
+   A proposed alternative was to simply XOR the hashes of individual
+   RRsets.  This would be much simpler to implement, wouldn't need any
+   persistent data structures, would be much faster to compute, and
+   would even allow validating an incremental change without accessing
+   the whole zone.  Unfortunately, such a scheme is not
+   cryptographically secure; it could only serve as a checksum against
+   random errors.
+
+9.2.  Shape of the Tree
+
+   Several variations of the Merkle tree design were considered,
+   focusing on its height and branching factor (the number of children
+   of a node).  There were two main proposals: a radix tree and a static
+   tree.
+
+   In the radix tree proposal, inner nodes that have no siblings would
+   be collapsed into their parents.  The leaves of the tree
+   (representing individual RRsets) would be located at varying depths
+   from the root.  Such a binary tree would have a maximum height of
+   256, but due to the uniform distribution of nodes by the hash
+   function, the real height would be logarithmic to the number of
+   nodes.  It would scale dynamically for the size of the zone while
+   offering logarithmic-time operations.
+
+   In the static tree proposal, all leaf nodes would be located at
+   exactly the same height, and all the nodes above them would exist
+   unconditionally.  RRsets would be hashed under the leaf nodes.  Its
+   operations scale linearly if there are many more RRsets than nodes.
+
+
+
+Wessels, et al.           Expires 15 April 2027                 [Page 8]
+
+Internet-Draft          The MERKLE3 ZONEMD Scheme           October 2026
+
+
+   There were concerns that a single static tree scheme would not cater
+   to the performance needs of both medium-sized and large zones, that
+   multiple schemes of different configurations would be needed.
+
+   These proposals were experimentally implemented with various
+   configurations.  They were compared by measuring their runtime
+   performance and memory usage in various scenarios (many tiny zones
+   and one TLD-like large zone):
+
+   *  binary radix tree
+   *  256-ary radix tree
+   *  256-ary static tree, depth 2
+   *  256-ary static tree, depth 3
+   *  256-ary static tree, depth 4
+
+   The single-threaded comptuation times of building the whole tree
+   (non-incremental update) of 8-million RR se. zone were in seconds,
+   respectively:
+
+   Binary radix: 9.11, 256-ary Radix: 7.98, 256-ary Static2: 11.43,
+   Static3: 8.03 Static4: 11.11
+
+   And the memory consumptions of the persistent Merkle tree were in
+   MiB, respectively:
+
+   Binary radix: 616, 256-ary Radix: 369, 256-ary Static2: 279, Static3:
+   285, Static4: 749
+
+   The penultimate option (256-ary static tree, depth 3) proved
+   versatile and almost best in each scenario.  It provides good speeds
+   for medium and large zones alike.  It was not necessary to define
+   multiple static tree schemes to cover all needs.
+
+   Note that the needs for very small zones were not considered, as they
+   are adequately satisfied by the SIMPLE scheme.
+
+9.3.  Granularity of hashing
+
+   While the final design operates on units of RRsets, smaller and
+   larger units were considered.
+
+   One proposal considered hashing individual resource records (RRs).
+   This would ease the processing of updates: an addition or removal of
+   an RR could be processed without knowledge of the RRset it is
+   contained within.  But it would require many more invocations of the
+   hash function (one per RR instead of one per RRset) and would
+   significantly increase the size of the tree.
+
+
+
+
+Wessels, et al.           Expires 15 April 2027                 [Page 9]
+
+Internet-Draft          The MERKLE3 ZONEMD Scheme           October 2026
+
+
+   Another proposal considered hashing whole Nodes (all the RRsets at a
+   particular owner name).  This would shrink the Merkle tree, but
+   increase the effort to process an update (significantly more data
+   would have to be hashed to update a single node).  Notably, the zone
+   apex, which often contains many RRsets, is affected by every update;
+   this proposal would greatly increase the effort for it.
+
+   The accepted proposal, where RRsets are hashed, strikes a balance
+   between hashing too many times and hashing too much.  The alternative
+   proposals were not implemented or experimentally evaluated.
+
+10.  References
+
+10.1.  Normative References
+
+   [RFC2119]  Bradner, S., "Key words for use in RFCs to Indicate
+              Requirement Levels", BCP 14, RFC 2119,
+              DOI 10.17487/RFC2119, March 1997,
+              <https://www.rfc-editor.org/info/rfc2119>.
+
+   [RFC8174]  Leiba, B., "Ambiguity of Uppercase vs Lowercase in RFC
+              2119 Key Words", BCP 14, RFC 8174, DOI 10.17487/RFC8174,
+              May 2017, <https://www.rfc-editor.org/info/rfc8174>.
+
+   [RFC8976]  Wessels, D., Barber, P., Weinberg, M., Kumari, W., and W.
+              Hardaker, "Message Digest for DNS Zones", RFC 8976,
+              DOI 10.17487/RFC8976, February 2021,
+              <https://www.rfc-editor.org/info/rfc8976>.
+
+10.2.  Informative References
+
+   [Nurgle]   He, Z., Li, Z., Qiao, A., Luo, X., Zhang,, X., Chen, T.,
+              Song, S., Liu, D., and W. Miu, "Nurgle: Exacerbating
+              Resource Consumption in Blockchain State Storage via MPT
+              Manipulation", May 2024,
+              <http://dx.doi.org/10.1109/SP54263.2024.00125>.
+
+Authors' Addresses
+
+   Duane Wessels
+   Verisign
+   Email: dwessels@verisign.com
+
+
+   Libor Peltan
+   CZ.NIC
+   Email: libor.peltan@nic.cz
+
+
+
+
+Wessels, et al.           Expires 15 April 2027                [Page 10]
+
+Internet-Draft          The MERKLE3 ZONEMD Scheme           October 2026
+
+
+   Arya Khanna
+   NLnet Labs
+   Email: arya@nlnetlabs.nl
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+Wessels, et al.           Expires 15 April 2027                [Page 11]

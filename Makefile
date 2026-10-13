@@ -2,7 +2,7 @@
 # built using mmark 2.
 # on fedora: sudo dnf install golang-github-mmarkdown-mmark
 
-VERSION = 00
+VERSION = 01
 DOCNAME = draft-aklpdw-dnsop-zonemd-incremental
 XML=Versions/$(DOCNAME)-$(VERSION).xml
 TXT=Versions/$(DOCNAME)-$(VERSION).txt
