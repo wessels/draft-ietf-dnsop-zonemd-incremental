@@ -57,7 +57,7 @@ coding = "utf-8"
    It embeds a cryptographic hash of the zone data, collated in a configurable way.
    It is used as a checksum for zone transfers between name servers.
 
-   [@!RFC8976] defined a single ZONEMD collation scheme, SIMPLE.
+   RFC8976 defined a single ZONEMD collation scheme, SIMPLE.
    It is sufficient for small and infrequently updated zones.
    This document introduces the MERKLE3 scheme, targeting large, dynamic zones.
    It uses a Merkle tree to enable parallelism and incremental computation.
