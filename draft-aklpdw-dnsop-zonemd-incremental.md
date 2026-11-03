@@ -90,6 +90,7 @@ coding = "utf-8"
    Given the prevalence of many-core CPUs, an order-of-magnitude speedup is achievable.
    Implementations can persist the tree structure for incremental computation, with even better speedups.
 
+<!--
 ## Reserved Words
 
    The key words "MUST", "MUST NOT", "REQUIRED", "SHALL", "SHALL NOT",
@@ -97,6 +98,7 @@ coding = "utf-8"
    and "OPTIONAL" in this document are to be interpreted as described
    in BCP 14 [@!RFC2119] [@!RFC8174] when, and only when, they
    appear in all capitals, as shown here.
+-->
 
 # The MERKLE3 Scheme
 
