@@ -140,7 +140,7 @@ coding = "utf-8"
 ~~~
 example.com.  300  IN  SOA   mname.example.com. rname.example.com. (
                              1 3600 7200 43200 300 )
-example.com.   60  I   NS    ns1.foo.example.
+example.com.   60  IN  NS    ns1.foo.example.
 example.com.  300  IN  AAAA  2606:4700:10::ac42:93f3
 example.com.  300  IN  AAAA  2606:4700:10::6814:179a
 ~~~
