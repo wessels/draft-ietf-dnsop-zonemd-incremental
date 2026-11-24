@@ -333,7 +333,9 @@ The final MERKLE3 ZONEMD SHA384 digest for this zone is:
      - that
      - the other
 
-# Appendix: Design Decisions
+{backmatter}
+
+# Design Decisions
 
 ## Use of Merkle Tree
 
@@ -418,8 +420,6 @@ The final MERKLE3 ZONEMD SHA384 digest for this zone is:
    The accepted proposal, where RRsets are hashed, strikes a balance between
    hashing too many times and hashing too much. The alternative proposals were
    not implemented or experimentally evaluated.
-
-{backmatter}
 
 {numbered="false"}
 
