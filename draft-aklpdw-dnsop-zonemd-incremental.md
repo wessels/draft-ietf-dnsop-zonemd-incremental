@@ -282,6 +282,30 @@ The final MERKLE3 ZONEMD SHA384 digest for this zone is:
 
    Reference: [this document]
 
+#  Performance Considerations
+
+   The MERKLE3 scheme requires an implementation to maintain
+   an in-memory Merkle tree data structure of DNS zone data.  This will
+   generally be in addition to an implementation's primary data structure
+   for referencing zone data.  As a sample data point, the .SE zone from
+   2026-02-16 with 8 million records and 1.41 million RRsets required an additional
+   285 MB of memory in the author's proof-of-concept implementation.
+
+   Compared to the SIMPLE scheme ([@!RFC8976]), the time to compute
+   an initial MERKLE3 digest can be larger in a single-threaded application, due to the need
+   to populate the Merkle tree data structure.
+   However, when parallelization and multi-threading are leveraged,
+   the MERKLE3 scheme can perform significantly better.
+
+   However, the time to compute updates to the MERKLE3 digest
+   are essentially zero on modern computer systems, whereas the SIMPLE
+   scheme provides no reduction in time for computing updates.
+
+   The above considerations apply only to well-balanced Merkle trees.
+   An attacker with the ability to insert RRsets into a zone may be able to intentionally unbalance the MERKLE3 data structure, similar to the Nurgle attack [@?Nurgle].
+   The performance of the MERKLE3 scheme in such an attack may be degraded at a rate proportional to the fraction of RRsets under the attacker's control.
+   In other words, an attacker would need to control a significant fraction of RRsets in a large zone in order to affect performance.
+
 #  Security Considerations
 
    All security considerations from [@!RFC8976] apply to this
@@ -324,31 +348,6 @@ The final MERKLE3 ZONEMD SHA384 digest for this zone is:
    achieve hash collision inside a level-1 branch node. The same argument
    applies for stepping up from level-1 branch case to the root node hash,
    which defines the ZONEMD hash.
-
-#  Performance Considerations
-
-   The MERKLE3 scheme requires an implementation to maintain
-   an in-memory Merkle tree data structure of DNS zone data.  This will
-   generally be in addition to an implementation's primary data structure
-   for referencing zone data.  As a sample data point, the .SE zone from
-   2026-02-16 with 8 million records and 1.41 million RRsets required an additional
-   285 MB of memory in the author's proof-of-concept implementation.
-
-   Compared to the SIMPLE scheme ([@!RFC8976]), the time to compute
-   an initial MERKLE3 digest can be larger in a single-threaded application, due to the need
-   to populate the Merkle tree data structure.
-   However, when parallelization and multi-threading are leveraged,
-   the MERKLE3 scheme can perform significantly better.
-
-   However, the time to compute updates to the MERKLE3 digest
-   are essentially zero on modern computer systems, whereas the SIMPLE
-   scheme provides no reduction in time for computing updates.
-
-   The above considerations apply only to well-balanced Merkle trees.
-   An attacker with the ability to insert RRsets into a zone may be able to intentionally unbalance the MERKLE3 data structure, similar to the Nurgle attack [@?Nurgle].
-   The performance of the MERKLE3 scheme in such an attack may be degraded at a rate proportional to the fraction of RRsets under the attacker's control.
-   In other words, an attacker would need to control a significant fraction of RRsets in a large zone in order to affect performance.
-
 
 #  Privacy Considerations
 
