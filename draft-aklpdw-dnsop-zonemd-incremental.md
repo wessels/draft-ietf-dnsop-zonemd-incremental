@@ -301,11 +301,6 @@ The final MERKLE3 ZONEMD SHA384 digest for this zone is:
    are essentially zero on modern computer systems, whereas the SIMPLE
    scheme provides no reduction in time for computing updates.
 
-   The above considerations apply only to well-balanced Merkle trees.
-   An attacker with the ability to insert RRsets into a zone may be able to intentionally unbalance the MERKLE3 data structure, similar to the Nurgle attack [@?Nurgle].
-   The performance of the MERKLE3 scheme in such an attack may be degraded at a rate proportional to the fraction of RRsets under the attacker's control.
-   In other words, an attacker would need to control a significant fraction of RRsets in a large zone in order to affect performance.
-
 #  Security Considerations
 
    All security considerations from [@!RFC8976] apply to this
@@ -348,6 +343,25 @@ The final MERKLE3 ZONEMD SHA384 digest for this zone is:
    achieve hash collision inside a level-1 branch node. The same argument
    applies for stepping up from level-1 branch case to the root node hash,
    which defines the ZONEMD hash.
+
+## Resource Exhaustion Of ZONEMD Generators And Validators
+
+   According to Performance Considerations above, computing the Incremental
+   ZONEMD hash (when generating or validating the ZONEMD) significantly
+   impacts resources of each involved authoritative DS server.
+
+   The memory consumption of the underlying Merkle tree structure is always
+   linear to the number of RRsets in zone. Therefore, the server operator might
+   consider limiting the zone size by a policy (as they probably already
+   do as the zone data itself also consumes memory).
+
+   The CPU consumption, however, can be unexpectedly higher due to intentional
+   malicious disbalancing of the Merkle tree, similarly to the Nurgle attack
+   [@?Nurgle]. If the attacker is in control of
+   the zone contents (or significant part thereof), they can craft the RRsets
+   in a way that the first two bytes of the RRset hashes are often the same,
+   which can lead to prolonged initial Merkle tree buildup as well as non-instant
+   incremental change recomputation.
 
 #  Privacy Considerations
 
