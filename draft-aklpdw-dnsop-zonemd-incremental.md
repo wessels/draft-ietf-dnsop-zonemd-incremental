@@ -106,10 +106,10 @@ coding = "utf-8"
 
    The MERKLE3 data structure is a trie.
    It consists of four levels:
-   level 0 (the root node),
-   level 1 (up to 256 nodes),
-   level 2 (up to 65,536 nodes),
-   and level 3 (individual RRsets).
+   level-0 (the root node),
+   level-1 (up to 256 nodes),
+   level-2 (up to 65,536 nodes),
+   and level-3 (individual RRsets).
    The first three levels (0, 1, and 2) are _inner nodes_.
    Nodes in levels 0 and 1 have up to 256 children each.
    Children are identified by an unsigned 8-bit index from 0 to 255.
@@ -117,9 +117,9 @@ coding = "utf-8"
    Every RRset is individually hashed, using the selected ZONEMD hash algorithm.
    The records in the RRset are sorted in DNSSEC canonical order, serialized in the DNSSEC canonical form, concatenated together, and hashed once.
    Each RRset is assigned to a level-2 node in the tree, based on the first two bytes of its hash.
-   The first byte selects a node in level 1 and the second selects a node in level 2.
+   The first byte selects a node in level-1 and the second selects a node in level-2.
 
-   Note: in the incredibly unlikely case that two RRsets have the same hash, they should not be deduplicated: both hashes should be inserted in the tree.
+   Note: in the incredibly unlikely case that two RRsets have the same hash at level-3 of the tree, they should not be deduplicated: both hashes should be inserted in the tree.
 
    Within each level-2 node, RRsets are sorted lexicographically by their hashes.
    These hashes are concatenated and hashed, using the same hash algorithm, to produce the hash of the level-2 node.
