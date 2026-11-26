@@ -287,6 +287,44 @@ The final MERKLE3 ZONEMD SHA384 digest for this zone is:
    All security considerations from [@!RFC8976] apply to this
    specification and the MERKLE3 scheme.
 
+## Merkle Tree Safety Against ZONEMD Hash Collisions
+
+   The security model here assumes an attacker who is in general not able to
+   find collisions for the underlying hash algorithm as such (for a given
+   input and SHA384/512 hash, find a different input with the same hash),
+   but they want to exploit weaknesses int the above defined Merkle Tree
+   structure to find a collision in the overall Incremental ZONEMD
+   computation (for a given zone contents and its ZONEMD, find a different
+   zone contents with the same ZONEMD).
+
+   Known attacks on Merkle trees in various fields of use include inserting
+   hash of leaf data into higher level of the tree (instead of having data
+   X in a level-3 leaf, put data H(X) into a level-2 leaf, where H is the
+   hash function) or exploiting ambiguousity of which subtree a hash comes
+   from during branch hash computation (e.g. if a branch node has just one
+   child node of lower level and hash H(X), the branch node's hash is always
+   H(H(X)) no matter which "slot" the child occupies).
+
+   The former attack scheme is mitigated for Incremental ZONEMD by insisting
+   that all leafs are at the same level, so every input data are hashed
+   the same amount of times. If an attacker tries to insert H(X) as an RRset
+   (where X is an existing RRset in the zone and H is the hash function),
+   the collision of intermediate hashes never appears at the same level of
+   the tree, and equalness of intermediate hashes across different levels of
+   the tree does not do any harm. Especially, substituting one for the other
+   does not lead to equal root hash.
+
+   The latter attack scheme is mitigated for Incremental ZONEMD by building
+   the hash slot-uniqueness bottom-up. For the level-2 branch nodes (those
+   directly above the leaves), the membership and order of each leaf is
+   unambiguous as the RRset hash value directly defines its position in the
+   tree. Thus, for level-2 nodes themselves, this attack does not provide any
+   way to achieve their hash collision. Therefore, the attacker has no chance
+   to inject equal hash from different subtree into level-1 branch node to
+   achieve hash collision inside a level-1 branch node. The same argument
+   applies for stepping up from level-1 branch case to the root node hash,
+   which defines the ZONEMD hash.
+
 #  Performance Considerations
 
    The MERKLE3 scheme requires an implementation to maintain
@@ -420,6 +458,25 @@ The final MERKLE3 ZONEMD SHA384 digest for this zone is:
    The accepted proposal, where RRsets are hashed, strikes a balance between
    hashing too many times and hashing too much. The alternative proposals were
    not implemented or experimentally evaluated.
+
+## Hardening of branch nodes hash computation
+
+   It has been suggested that the branch node hash computation might be prone
+   to collision attacks as it computes its own hash only from the child nodes'
+   hashes in their specified order, but the computation doesn't include the
+   information about which "slot" the child hash came from. There had been
+   known attacks on Merkle trees in different fields of use where similar
+   weakness was used to find different set of underlying data yielding equal
+   root node hash.
+
+   The suggested mitigation included inserting some placeholders (e.g. H(""))
+   into unused branch node "slots" before the computation. A more efficient
+   mitigation would be including a bitmap of used slots (256 bits, each denoting
+   if the respective child node exists or is skipped) into branch node hash
+   computation. However, in Security considerations we explain why neither is
+   necessary. It is beneficial to avoid either of the suggested hardenings
+   for the sake of design simplicity, moreover, the former one could also
+   introduce serious performance penalty.
 
 # Example Zones with Digests
 
