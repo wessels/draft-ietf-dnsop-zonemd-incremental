@@ -225,13 +225,13 @@ The final MERKLE3 ZONEMD SHA384 digest for this zone is:
    tree has its own hash value, which is calculated from the elements
    directly beneath it.
 
-   A leaf node's hash value is directly the RRset hash value and corresponds
+   A leaf node's hash value is directly the RRset hash value and determines
    to the leaf position in the tree.
 
-   A branch node (including root) hash value is calculated by concatenating
-   all of its child node hash values, sorted numerically, as input to the zone
+   A branch node's (including root) hash value is calculated by concatenating
+   all of its child node hash values, in branch order, as input to the zone
    digest hash function. Note that for branch nodes, their assigned hash value
-   may (in fact, usually will) not correspond to its position in the tree
+   may (in fact, usually will) be unrelated to its position in the tree
    (and the common prefix of leaves' hash values).
 
    The root node hash value becomes the zone digest, placed in the
