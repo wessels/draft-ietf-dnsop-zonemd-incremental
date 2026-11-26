@@ -421,6 +421,302 @@ The final MERKLE3 ZONEMD SHA384 digest for this zone is:
    hashing too many times and hashing too much. The alternative proposals were
    not implemented or experimentally evaluated.
 
+# Example Zones with Digests
+
+## Simple EXAMPLE Zone
+
+Here, the EXAMPLE zone contains an SOA record, NS and glue records, and a ZONEMD record.
+
+```
+example.      86400   IN  SOA     ns1 admin 2018031900 (
+                                  1800 900 604800 86400 )
+              86400   IN  NS      ns1
+              86400   IN  NS      ns2
+              86400   IN  ZONEMD  2018031900 1 1 (
+                                  c68090d90a7aed71
+                                  6bc459f9340e3d7c
+                                  1370d4d24b7e2fc3
+                                  a1ddc0b9a87153b9
+                                  a9713b3c9ae5cc27
+                                  777f98b8e730044c )
+ns1           3600    IN  A       203.0.113.63
+ns2           3600    IN  AAAA    2001:db8::63
+```
+
+## Complex EXAMPLE Zone
+
+Here, the EXAMPLE zone contains duplicate RRs, and an occluded RR, and one out-of-zone RR.
+
+```
+example.      86400  IN  SOA     ns1 admin 2018031900 (
+                                 1800 900 604800 86400 )
+              86400  IN  NS      ns1
+              86400  IN  NS      ns2
+              86400  IN  ZONEMD  2018031900 1 1 (
+                                 a3b69bad980a3504
+                                 e1cffcb0fd6397f9
+                                 3848071c93151f55
+                                 2ae2f6b1711d4bd2
+                                 d8b39808226d7b9d
+                                 b71e34b72077f8fe )
+ns1           3600   IN  A       203.0.113.63
+NS2           3600   IN  AAAA    2001:db8::63
+occluded.sub  7200   IN  TXT     "I'm occluded but must be digested"
+sub           7200   IN  NS      ns1
+duplicate     300    IN  TXT     "I must be digested just once"
+duplicate     300    IN  TXT     "I must be digested just once"
+foo.test.     555    IN  TXT     "out-of-zone data must be excluded"
+UPPERCASE     3600   IN  TXT     "canonicalize uppercase owner names"
+*             777    IN  PTR     dont-forget-about-wildcards
+mail          3600   IN  MX      20 MAIL1
+mail          3600   IN  MX      10 Mail2.Example.
+sortme        3600   IN  AAAA    2001:db8::5:61
+sortme        3600   IN  AAAA    2001:db8::3:62
+sortme        3600   IN  AAAA    2001:db8::4:63
+sortme        3600   IN  AAAA    2001:db8::1:65
+sortme        3600   IN  AAAA    2001:db8::2:64
+non-apex      900    IN  ZONEMD  2018031900 1 1 (
+                                 616c6c6f77656420
+                                 6275742069676e6f
+                                 7265642e20616c6c
+                                 6f77656420627574
+                                 2069676e6f726564
+                                 2e20616c6c6f7765 )
+```
+
+## EXAMPLE Zone with multiple digests
+
+Here, the EXAMPLE zone contains multiple ZONEMD records. It has both
+SHA384 and SHA512 digests using the SIMPLE scheme.  It also includes
+ZONEMD records with Scheme and Hash Algorithm
+values in the private range (240-254).  These additional
+private-range digests are not verifiable.
+
+```
+example.      86400  IN  SOA     ns1 admin 2018031900 (
+                                 1800 900 604800 86400 )
+example.      86400  IN  NS      ns1.example.
+example.      86400  IN  NS      ns2.example.
+example.      86400  IN  ZONEMD  2018031900 1 1 (
+                                 62e6cf51b02e54b9
+                                 b5f967d547ce4313
+                                 6792901f9f88e637
+                                 493daaf401c92c27
+                                 9dd10f0edb1c56f8
+                                 080211f8480ee306 )
+example.      86400  IN  ZONEMD  2018031900 1 2 (
+                                 08cfa1115c7b948c
+                                 4163a901270395ea
+                                 226a930cd2cbcf2f
+                                 a9a5e6eb85f37c8a
+                                 4e114d884e66f176
+                                 eab121cb02db7d65
+                                 2e0cc4827e7a3204
+                                 f166b47e5613fd27 )
+example.      86400  IN  ZONEMD  2018031900 1 240 (
+                                 e2d523f654b9422a
+                                 96c5a8f44607bbee )
+example.      86400  IN  ZONEMD  2018031900 241 1 (
+                                 e1846540e33a9e41
+                                 89792d18d5d131f6
+                                 05fc283e )
+ns1.example.  3600   IN  A       203.0.113.63
+ns2.example.  86400  IN  TXT     "This example has multiple digests"
+NS2.EXAMPLE.  3600   IN  AAAA    2001:db8::63
+```
+
+## The URI.ARPA Zone
+
+The following sample zone is the URI.ARPA zone retrieved 2021-01-21. Note
+this sample zone has been re-signed with unpublished keys, so that the
+added ZONEMD RR also has a signature.
+
+```
+uri.arpa.       3600    IN      SOA     sns.dns.icann.org. (
+   noc.dns.icann.org. 2018100702 10800 3600 1209600 3600 )
+uri.arpa.       3600    IN      RRSIG   SOA 8 2 3600 (
+    20210217232440 20210120232440 37444 uri.arpa.
+    GzQw+QzwLDJr13REPGVmpEChjD1D2XlX0ie1DnWHpgaEw1E/dhs3lCN3+B
+    mHd4Kx3tffTRgiyq65HxR6feQ5v7VmAifjyXUYB1DZur1eP5q0Ms2ygCB3
+    byoeMgCNsFS1oKZ2LdzNBRpy3oace8xQn1SpmHGfyrsgg+WbHKCT1dY= )
+uri.arpa.       86400   IN      NS      a.iana-servers.net.
+uri.arpa.       86400   IN      NS      b.iana-servers.net.
+uri.arpa.       86400   IN      NS      c.iana-servers.net.
+uri.arpa.       86400   IN      NS      ns2.lacnic.net.
+uri.arpa.       86400   IN      NS      sec3.apnic.net.
+uri.arpa.       86400   IN      RRSIG   NS 8 2 86400 (
+    20210217232440 20210120232440 37444 uri.arpa.
+    M+Iei2lcewWGaMtkPlrhM9FpUAHXFkCHTVpeyrjxjEONeNgKtHZor5e4V4
+    qJBOzNqo8go/qJpWlFBm+T5Hn3asaBZVstFIYky38/C8UeRLPKq1hTTHAR
+    YUlFrexr5fMtSUAVOgOQPSBfH3xBq/BgSccTdRb9clD+HE7djpqrLS4= )
+uri.arpa.       600     IN      MX      10 pechora.icann.org.
+uri.arpa.       600     IN      RRSIG   MX 8 2 600 (
+    20210217232440 20210120232440 37444 uri.arpa.
+    kQAJQivmv6A5hqYBK8h6Z13ESY69gmosXwKI6WE09I8RFetfrxr24ecdnY
+    d0lpnDtgNNSoHkYRSOoB+C4+zuJsoyAAzGo9uoWMWj97/2xeGhf3PTC9me
+    Q9Ohi6hul9By7OR76XYmGhdWX8PBi60RUmZ1guslFBfQ8izwPqzuphs= )
+uri.arpa.       3600    IN      DNSKEY  256 3 8 (
+    AwEAAbMxuFuLeVDuOwIMzYOTD/bTREjLflo7wOi6ieIJhqltEzgjNzmWJf
+    9kGwwDmzxU7kbthMEhBNBZNn84zmcyRSCMzuStWveL7xmqqUlE3swL8kLO
+    vdZvc75XnmpHrk3ndTyEb6eZM7slh2C63Oh6K8VR5VkiZAkEGg0uZIT3Nj
+    sF )
+uri.arpa.       3600    IN      DNSKEY  257 3 8 (
+    AwEAAdkTaWkZtZuRh7/OobBUFxM+ytTst+bCu0r9w+rEwXD7GbDs0pIMhM
+    enrZzoAvmv1fQxw2MGs6Ri6yPKfNULcFOSt9l8i6BVBLI+SKTY6XXeDUQp
+    SEmSaxohHeRPMQFzpysfjxINp/L2rGtZ7yPmxY/XRiFPSO0myqwGJa9r06
+    Zw9CHM5UDHKWV/E+zxPFq/I7CfPbrrzbUotBX7Z6Vh3Sarllbe8cGUB2UF
+    NaTRgwB0TwDBPRD5ER3w2Dzbry9NhbElTr7vVfhaGWeOGuqAUXwlXEg6Cr
+    NkmJXJ2F1Rzr9WHUzhp7uWxhAbmJREGfi2dEyPAbUAyCjBqhFaqglknvc= )
+uri.arpa.       3600    IN      DNSKEY  257 3 8 (
+    AwEAAenQaBoFmDmvRT+/H5oNbm0Tr5FmNRNDEun0Jpj/ELkzeUrTWhNpQm
+    ZeIMC8I0kZ185tEvOnRvn8OvV39B17QIdrvvKGIh2HlgeDRCLolhaojfn2
+    QM0DStjF/WWHpxJOmE6CIuvhqYEU37yoJscGAPpPVPzNvnL1HhYTaao1VR
+    YWQ/maMrJ+bfHg+YX1N6M/8MnRjIKBif1FWjbCKvsn6dnuGGL9oCWYUFJ3
+    DwofXuhgPyZMkzPc88YkJj5EMvbMH4wtelbCwC+ivx732l0w/rXJn0ciQS
+    OgoeVvDio8dIJmWQITWQAuP+q/ZHFEFHPlrP3gvQh5mcVS48eLX71Bq7c= )
+uri.arpa.       3600    IN      RRSIG   DNSKEY 8 2 3600 (
+    20210217232440 20210120232440 12670 uri.arpa.
+    DBE2gkKAoxJCfz47KKxzoImN/0AKArhIVHE7TyTwy0DdRPo44V5R+vL6th
+    UxlQ1CJi2Rw0jwAXymx5Y3Q873pOEllH+4bJoIT4dmoBmPXfYWW7Clvw9U
+    PKHRP0igKHmCVwIeBYDTU3gfLcMTbR4nEWPDN0GxlL1Mf7ITaC2Ioabo79
+    Ip3M/MR8I3Vx/xZ4ZKKPHtLn3xUuJluPNanqJrED2gTslL2xWZ1tqjsAjJ
+    v7JnJo2HJ8XVRB5zBto0IaJ2oBlqcjdcQ/0VlyoM8uOy1pDwHQ2BJl7322
+    gNMHBP9HSiUPIOaIDNUCwW8eUcW6DIUk+s9u3GN1uTqwWzsYB/rA== )
+uri.arpa.       3600    IN      RRSIG   DNSKEY 8 2 3600 (
+    20210217232440 20210120232440 30577 uri.arpa.
+    Kx6HwP4UlkGc1UZ7SERXtQjPajOF4iUvkwDj7MEG1xbQFB1KoJiEb/eiW0
+    qmSWdIhMDv8myhgauejRLyJxwxz8HDRV4xOeHWnRGfWBk4XGYwkejVzOHz
+    oIArVdUVRbr2JKigcTOoyFN+uu52cNB7hRYu7dH5y1hlc6UbOnzRpMtGxc
+    gVyKQ+/ARbIqGG3pegdEOvV49wTPWEiyY65P2urqhvnRg5ok/jzwAdMx4X
+    Gshiib7Ojq0sRVl2ZIzj4rFgY/qsSO8SEXEhMo2VuSkoJNiofVzYoqpxEe
+    GnANkIT7Tx2xJL1BWyJxyc7E8Wr2QSgCcc+rYL6IkHDtJGHy7TaQ== )
+uri.arpa.       3600    IN      ZONEMD  2018100702 1 1 (
+    0dbc3c4dbfd75777c12ca19c337854b1577799901307c482e9d91d5d15
+    cd934d16319d98e30c4201cf25a1d5a0254960 )
+uri.arpa.       3600    IN      RRSIG   ZONEMD 8 2 3600 (
+    20210217232440 20210120232440 37444 uri.arpa.
+    QDo4XZcL3HMyn8aAHyCUsu/Tqj4Gkth8xY1EqByOb8XOTwVtA4ZNQORE1s
+    iqNqjtJUbeJPtJSbLNqCL7rCq0CzNNnBscv6IIf4gnqJZjlGtHO30ohXtK
+    vEc4z7SU3IASsi6bB3nLmEAyERdYSeU6UBfx8vatQDIRhkgEnnWUTh4= )
+uri.arpa.       3600    IN      NSEC    ftp.uri.arpa. (
+    NS SOA MX RRSIG NSEC DNSKEY ZONEMD )
+uri.arpa.       3600    IN      RRSIG   NSEC 8 2 3600 (
+    20210217232440 20210120232440 37444 uri.arpa.
+    dU/rXLM/naWd1+1PiWiYVaNJyCkiuyZJSccr91pJI673T8r3685B4ODMYF
+    afZRboVgwnl3ZrXddY6xOhZL3n9V9nxXZwjLJ2HJUojFoKcXTlpnUyYUYv
+    VQ2kj4GHAo6fcGCEp5QFJ2KbCpeJoS+PhKGRRx28icCiNT4/uXQvO2E= )
+ftp.uri.arpa.   604800  IN      NAPTR   0 0 "" "" (
+    "!^ftp://([^:/?#]*).*$!\\1!i" . )
+ftp.uri.arpa.   604800  IN      RRSIG   NAPTR 8 3 604800 (
+    20210217232440 20210120232440 37444 uri.arpa.
+    EygekDgl+Lyyq4NMSEpPyOrOywYf9Y3FAB4v1DT44J3R5QGidaH8l7ZFjH
+    oYFI8sY64iYOCV4sBnX/dh6C1L5NgpY+8l5065Xu3vvjyzbtuJ2k6YYwJr
+    rCbvl5DDn53zAhhO2hL9uLgyLraZGi9i7TFGd0sm3zNyUF/EVL0CcxU= )
+ftp.uri.arpa.   3600    IN      NSEC    http.uri.arpa. (
+    NAPTR RRSIG NSEC )
+ftp.uri.arpa.   3600    IN      RRSIG   NSEC 8 3 3600 (
+    20210217232440 20210120232440 37444 uri.arpa.
+    pbP4KxevPXCu/bDqcvXiuBppXyFEmtHyiy0eAN5gS7mi6mp9Z9bWFjx/Ld
+    H9+6oFGYa5vGmJ5itu/4EDMe8iQeZbI8yrpM4TquB7RR/MGfBnTd8S+sjy
+    QtlRYG7yqEu77Vd78Fme22BKPJ+MVqjS0JHMUE/YUGomPkAjLJJwwGw= )
+http.uri.arpa.  604800  IN      NAPTR   0 0 "" "" (
+    "!^http://([^:/?#]*).*$!\\1!i" . )
+http.uri.arpa.  604800  IN      RRSIG   NAPTR 8 3 604800 (
+    20210217232440 20210120232440 37444 uri.arpa.
+    eTqbWvt1GvTeXozuvm4ebaAfkXFQKrtdu0cEiExto80sHIiCbO0WL8UDa/
+    J3cDivtQca7LgUbOb6c17NESsrsVkc6zNPx5RK2tG7ZQYmhYmtqtfg1oU5
+    BRdHZ5TyqIXcHlw9Blo2pir1Y9IQgshhD7UOGkbkEmvB1Lrd0aHhAAg= )
+http.uri.arpa.  3600    IN      NSEC    mailto.uri.arpa. (
+    NAPTR RRSIG NSEC )
+http.uri.arpa.  3600    IN      RRSIG   NSEC 8 3 3600 (
+    20210217232440 20210120232440 37444 uri.arpa.
+    R9rlNzw1CVz2N08q6DhULzcsuUm0UKcPaGAWEU40tr81jEDHsFHNM+khCd
+    OI8nDstzA42aee4rwCEgijxJpRCcY9hrO1Ysrrr2fdqNz60JikMdarvU5O
+    0p0VXeaaJDfJQT44+o+YXaBwI7Qod3FTMx7aRib8i7istvPm1Rr7ixA= )
+mailto.uri.arpa.        604800  IN      NAPTR   0 0 "" "" (
+    "!^mailto:(.*)@(.*)$!\\2!i" . )
+mailto.uri.arpa.        604800  IN      RRSIG   NAPTR 8 3 604800 (
+    20210217232440 20210120232440 37444 uri.arpa.
+    Ch2zTG2F1plEvQPyIH4Yd80XXLjXOPvMbiqDjpJBcnCJsV8QF7kr0wTLnU
+    T3dB+asQudOjPyzaHGwFlMzmrrAsszN4XAMJ6htDtFJdsgTMP/NkHhYRSm
+    Vv6rLeAhd+mVfObY12M//b/GGVTjeUI/gJaLW0fLVZxr1Fp5U5CRjyw= )
+mailto.uri.arpa.        3600    IN      NSEC    urn.uri.arpa. (
+    NAPTR RRSIG NSEC )
+mailto.uri.arpa.        3600    IN      RRSIG   NSEC 8 3 3600 (
+    20210217232440 20210120232440 37444 uri.arpa.
+    fQUbSIE6E7JDi2rosah4SpCOTrKufeszFyj5YEavbQuYlQ5cNFvtm8KuE2
+    xXMRgRI4RGvM2leVqcoDw5hS3m2pOJLxH8l2WE72YjYvWhvnwc5Rofe/8y
+    B/vaSK9WCnqN8y2q6Vmy73AGP0fuiwmuBra7LlkOiqmyx3amSFizwms= )
+urn.uri.arpa.   604800  IN      NAPTR   0 0 "" "" (
+    "/urn:([^:]+)/\\1/i" . )
+urn.uri.arpa.   604800  IN      RRSIG   NAPTR 8 3 604800 (
+    20210217232440 20210120232440 37444 uri.arpa.
+    CVt2Tgz0e5ZmaSXqRfNys/8OtVCk9nfP0zhezhN8Bo6MDt6yyKZ2kEEWJP
+    jkN7PCYHjO8fGjnUn0AHZI2qBNv7PKHcpR42VY03q927q85a65weOO1YE0
+    vPYMzACpua9TOtfNnynM2Ws0uN9URxUyvYkXBdqOC81N3sx1dVELcwc= )
+urn.uri.arpa.   3600    IN      NSEC    uri.arpa. NAPTR RRSIG NSEC
+urn.uri.arpa.   3600    IN      RRSIG   NSEC 8 3 3600 (
+    20210217232440 20210120232440 37444 uri.arpa.
+    JuKkMiC3/j9iM3V8/izcouXWAVGnSZjkOgEgFPhutMqoylQNRcSkbEZQzF
+    K8B/PIVdzZF0Y5xkO6zaKQjOzz6OkSaNPIo1a7Vyyl3wDY/uLCRRAHRJfp
+    knuY7O+AUNXvVVIEYJqZggd4kl/Rjh1GTzPYZTRrVi5eQidI1LqCOeg= )
+```
+
+## The ROOT-SERVERS.NET Zone
+
+The ROOT-SERVERS.NET zone retrieved 2018-10-21.
+
+```
+root-servers.net.     3600000 IN  SOA     a.root-servers.net. (
+    nstld.verisign-grs.com. 2018091100 14400 7200 1209600 3600000 )
+root-servers.net.     3600000 IN  NS      a.root-servers.net.
+root-servers.net.     3600000 IN  NS      b.root-servers.net.
+root-servers.net.     3600000 IN  NS      c.root-servers.net.
+root-servers.net.     3600000 IN  NS      d.root-servers.net.
+root-servers.net.     3600000 IN  NS      e.root-servers.net.
+root-servers.net.     3600000 IN  NS      f.root-servers.net.
+root-servers.net.     3600000 IN  NS      g.root-servers.net.
+root-servers.net.     3600000 IN  NS      h.root-servers.net.
+root-servers.net.     3600000 IN  NS      i.root-servers.net.
+root-servers.net.     3600000 IN  NS      j.root-servers.net.
+root-servers.net.     3600000 IN  NS      k.root-servers.net.
+root-servers.net.     3600000 IN  NS      l.root-servers.net.
+root-servers.net.     3600000 IN  NS      m.root-servers.net.
+a.root-servers.net.   3600000 IN  AAAA    2001:503:ba3e::2:30
+a.root-servers.net.   3600000 IN  A       198.41.0.4
+b.root-servers.net.   3600000 IN  MX      20 mail.isi.edu.
+b.root-servers.net.   3600000 IN  AAAA    2001:500:200::b
+b.root-servers.net.   3600000 IN  A       199.9.14.201
+c.root-servers.net.   3600000 IN  AAAA    2001:500:2::c
+c.root-servers.net.   3600000 IN  A       192.33.4.12
+d.root-servers.net.   3600000 IN  AAAA    2001:500:2d::d
+d.root-servers.net.   3600000 IN  A       199.7.91.13
+e.root-servers.net.   3600000 IN  AAAA    2001:500:a8::e
+e.root-servers.net.   3600000 IN  A       192.203.230.10
+f.root-servers.net.   3600000 IN  AAAA    2001:500:2f::f
+f.root-servers.net.   3600000 IN  A       192.5.5.241
+g.root-servers.net.   3600000 IN  AAAA    2001:500:12::d0d
+g.root-servers.net.   3600000 IN  A       192.112.36.4
+h.root-servers.net.   3600000 IN  AAAA    2001:500:1::53
+h.root-servers.net.   3600000 IN  A       198.97.190.53
+i.root-servers.net.   3600000 IN  MX      10 mx.i.root-servers.org.
+i.root-servers.net.   3600000 IN  AAAA    2001:7fe::53
+i.root-servers.net.   3600000 IN  A       192.36.148.17
+j.root-servers.net.   3600000 IN  AAAA    2001:503:c27::2:30
+j.root-servers.net.   3600000 IN  A       192.58.128.30
+k.root-servers.net.   3600000 IN  AAAA    2001:7fd::1
+k.root-servers.net.   3600000 IN  A       193.0.14.129
+l.root-servers.net.   3600000 IN  AAAA    2001:500:9f::42
+l.root-servers.net.   3600000 IN  A       199.7.83.42
+m.root-servers.net.   3600000 IN  AAAA    2001:dc3::35
+m.root-servers.net.   3600000 IN  A       202.12.27.33
+root-servers.net.     3600000 IN  SOA     a.root-servers.net. (
+    nstld.verisign-grs.com. 2018091100 14400 7200 1209600 3600000 )
+root-servers.net.     3600000 IN  ZONEMD  2018091100 1 1 (
+    f1ca0ccd91bd5573d9f431c00ee0101b2545c97602be0a97
+    8a3b11dbfc1c776d5b3e86ae3d973d6b5349ba7f04340f79 )
+```
+
 {numbered="false"}
 
 <reference anchor="Nurgle" target="http://dx.doi.org/10.1109/SP54263.2024.00125">
